@@ -12,7 +12,9 @@ import keystrokesmod.utility.Utils;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.MathHelper;
+import net.minecraft.util.MovingObjectPosition;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import org.lwjgl.input.Mouse;
 
 public class AimAssist extends Module {
 
@@ -22,8 +24,8 @@ public class AimAssist extends Module {
     private SliderSetting distance;
 
     private ButtonSetting clickAim;
-    private ButtonSetting disableWhileMining;
     private ButtonSetting weaponOnly;
+    private ButtonSetting disableWhileMining;
     private ButtonSetting aimInvis;
     private ButtonSetting blatantMode;
     private ButtonSetting ignoreTeammates;
@@ -48,28 +50,15 @@ public class AimAssist extends Module {
 
     @Override
     public String getInfo() {
-        String info;
-        info = aimModes[(int) mode.getInput()];
-        return info;
+        return aimModes[(int) mode.getInput()];
     }
-
 
     @SubscribeEvent
     public void onPreUpdate(PreUpdateEvent e) {
         this.lookingAt = null;
-        if (mc.currentScreen != null || !mc.inGameHasFocus) {
+        if (mode.getInput() == 0 || !conditionsMet()) {
             return;
         }
-        if (weaponOnly.isToggled() && !Utils.holdingWeapon()) {
-            return;
-        }
-        if (clickAim.isToggled() && !Utils.isClicking()) {
-            return;
-        }
-        if (disableWhileMining.isToggled() && Utils.isMining()) {
-            return;
-        }
-
         Entity en = this.getEnemy();
 
         if (en == null) {
@@ -91,6 +80,27 @@ public class AimAssist extends Module {
             float yaw = RotationUtils.serverRotations[0] + val;
             RotationHelper.get().setYaw(yaw);
             lookingAt = new Float[] { yaw };
+        }
+    }
+
+    @Override
+    public void onUpdate() {
+        if (mode.getInput() == 1 || !conditionsMet()) {
+            return;
+        }
+        Entity en = this.getEnemy();
+        if (en == null) {
+            return;
+        }
+        if (blatantMode.isToggled()) {
+            Utils.aim(en, 0.0F, false);
+        }
+        else {
+            double n = Utils.aimDifference(en, false);
+            if (n > 1.0D || n < -1.0D) {
+                float val = (float) (-(n / (101.0D - (speed.getInput()))));
+                mc.thePlayer.rotationYaw += val;
+            }
         }
     }
 
@@ -135,6 +145,26 @@ public class AimAssist extends Module {
             }
         }
         return null;
+    }
+
+    private boolean conditionsMet() {
+        if (mc.currentScreen != null || !mc.inGameHasFocus) {
+            return false;
+        }
+        if (weaponOnly.isToggled() && !Utils.holdingWeapon()) {
+            return false;
+        }
+        if (clickAim.isToggled() && !Utils.isClicking()) {
+            return false;
+        }
+        if (disableWhileMining.isToggled() && isMining()) {
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isMining() {
+        return Mouse.isButtonDown(0) && mc.objectMouseOver != null && mc.objectMouseOver.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK && mc.objectMouseOver.getBlockPos() != null;
     }
 
 }

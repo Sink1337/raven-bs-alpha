@@ -19,7 +19,7 @@ public class RotationUtils {
     public static float renderYaw;
     public static float prevRenderYaw;
     public static float[] serverRotations = new float[] { 0, 0 } ;
-    public static float finalYaw = 0;
+
     public static Float[] fakeRotations;
     public static boolean setFakeRotations;
 

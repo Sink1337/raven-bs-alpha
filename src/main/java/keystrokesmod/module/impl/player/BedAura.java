@@ -393,7 +393,10 @@ public class BedAura extends Module {
         isBreaking = true;
         breakTick = true;
 
-        ignoreSlow = true;
+        if (Utils.distanceToGround() < 3) {
+            ignoreSlow = true;
+            spoofGround = true;
+        }
     }
 
     private void stopBreak(ClientRotationEvent e, BlockPos blockPos) {

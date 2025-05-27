@@ -37,8 +37,8 @@ public class NoSlow extends Module {
     public static ButtonSetting disableBow;
     public static ButtonSetting disablePotions;
     public static ButtonSetting swordOnly;
-    public static ButtonSetting disableSprintInAir;
-    private ButtonSetting renderTimer;
+    public static ButtonSetting slowFirstJump;
+    public ButtonSetting renderTimer;
 
     private String[] swordMode = new String[] { "Vanilla", "Item mode", "Fake" };
     private String[] modes = new String[] { "Vanilla", "Pre", "Post", "Alpha", "Float", "Blink" };
@@ -46,15 +46,15 @@ public class NoSlow extends Module {
     private String[] vanillaModes = new String[] { "Default", "Only on ground" };
 
     private boolean postPlace;
-    private boolean canFloat;
-    public boolean noSlowing, offset;
+    private boolean canFloat, cs;
+    public boolean noSlowing;
+    public boolean offset;
+    public static boolean canSlow;
     private int offsetDelay;
     private boolean setJump;
     private boolean bl;
-    private boolean blink, wentOffGround;
-    private ConcurrentLinkedQueue<Packet> blinkedPackets = new ConcurrentLinkedQueue<>();
-    private int color = new Color(0, 187, 255, 255).getRGB();
-    private int blinkTicks, floatTicks;
+    public boolean blink;
+    private boolean wentOffGround;
     private boolean requireJump;
     private static boolean fix;
     private boolean didC;
@@ -66,6 +66,7 @@ public class NoSlow extends Module {
         this.registerSetting(new DescriptionSetting("Default is 80% motion reduction."));
         this.registerSetting(sword = new SliderSetting("Sword", 0, swordMode));
         this.registerSetting(mode = new SliderSetting("Item", 0, modes));
+        this.registerSetting(slowFirstJump = new ButtonSetting("Slow first jump", false));
         this.registerSetting(vanillaMode = new SliderSetting("Vanilla mode", 0, vanillaModes));
         this.registerSetting(blinkMode = new SliderSetting("Blink Mode", 0, blinkModes));
         this.registerSetting(renderTimer = new ButtonSetting("Render timer", false));
@@ -73,10 +74,10 @@ public class NoSlow extends Module {
         this.registerSetting(disableBow = new ButtonSetting("Disable bow", false));
         this.registerSetting(disablePotions = new ButtonSetting("Disable potions", false));
         this.registerSetting(swordOnly = new ButtonSetting("Sword only", false));
-        this.registerSetting(disableSprintInAir = new ButtonSetting("Disable sprint in air", false));
     }
 
     public void guiUpdate() {
+        this.slowFirstJump.setVisible(mode.getInput() == 4, this);
         this.renderTimer.setVisible(mode.getInput() == 5, this);
         this.blinkMode.setVisible(mode.getInput() == 5, this);
         this.vanillaMode.setVisible(mode.getInput() == 0, this);
@@ -90,14 +91,18 @@ public class NoSlow extends Module {
             ReflectionUtils.setItemInUse(false);
             bl = false;
         }
-        release();
+        blink = wentOffGround = false;
         fn = false;
+        cs = canSlow = false;
+        cantBlock = false;
     }
 
-    public void onUpdate() {
+    @SubscribeEvent
+    public void onPreUpdate(PreUpdateEvent e) {
         boolean apply = getSlowed() != 0.2f;
         if (!apply || !mc.thePlayer.isUsingItem()) {
-            release();
+            blink = wentOffGround = canSlow = false;
+            cs = true;
             return;
         }
         postPlace = false;
@@ -119,6 +124,15 @@ public class NoSlow extends Module {
                 }
                 break;
             case 4:
+                if (slowFirstJump.isToggled()) {
+                    if (cs) {
+                        canSlow = true;
+                        cs = false;
+                        mc.thePlayer.setSprinting(false);
+                    } else if (mc.thePlayer.onGround) {
+                        canSlow = false;
+                    }
+                }
                 handleFloatSetup();
                 if (!blockConditions()) {
                     didC = true;
@@ -135,24 +149,10 @@ public class NoSlow extends Module {
                     blink = true;
                 }
                 else {
-                    release();
+                    blink = wentOffGround = false;
                 }
-                if (blink) blinkTicks++;
                 break;
         }
-    }
-
-    @SubscribeEvent
-    public void onRenderTick(TickEvent.RenderTickEvent ev) {
-        if (!Utils.nullCheck() || !renderTimer.isToggled() || mode.getInput() != 5 || blinkTicks == 0 || blinkTicks >= 99999) {
-            return;
-        }
-        if (ev.phase == TickEvent.Phase.END) {
-            if (mc.currentScreen != null) {
-                return;
-            }
-        }
-        Utils.handleTimer(color, blinkTicks);
     }
 
     @SubscribeEvent
@@ -165,11 +165,26 @@ public class NoSlow extends Module {
         }
     }
 
+    private boolean blocking;
+
+    public boolean cantBlock;
+
     @SubscribeEvent
     public void onPreMotion(PreMotionEvent e) {
         fn = false;
+        EntityLivingBase g = Utils.raytrace(4);
         if (sword.getInput() == 2 && !ModuleManager.killAura.blockingClient) {
+            if (blocking && (g == null && !BlockUtils.isInteractable(mc.objectMouseOver) || !Utils.holdingSword() && !Utils.keybinds.isMouseDown(1))) {
+                KeyBinding.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), false);
+                blocking = false;
+            }
             if (Utils.holdingSword() && Utils.tabbedIn() && Mouse.isButtonDown(1)) {
+                if (g == null && !BlockUtils.isInteractable(mc.objectMouseOver)) {
+                    cantBlock = true;
+                } else {
+                    blocking = true;
+                    cantBlock = false;
+                }
                 ReflectionUtils.setItemInUse(true);
                 bl = true;
                 if (Mouse.isButtonDown(0)) {
@@ -180,6 +195,9 @@ public class NoSlow extends Module {
                 ReflectionUtils.setItemInUse(false);
                 bl = false;
             }
+        }
+        else {
+            cantBlock = false;
         }
         postPlace = false;
         if (mode.getInput() != 4) {
@@ -202,7 +220,8 @@ public class NoSlow extends Module {
         else if (canFloat && canFloat() && !requireJump && (!jumped || ++offsetDelay > 1)) {
             fn = true;
             if (!mc.thePlayer.onGround) {
-                if (mc.thePlayer.motionY < -0.0784000015258789 && !(mc.thePlayer.posY % 1 == 0)) {
+                //-0.0784000015258789 ground value
+                if (mc.thePlayer.motionY <= -0.1784000015258789) {
                     e.setPosY(e.getPosY() + 1e-3);
                 } else {
                     e.setPosY(e.getPosY() - 1e-3);
@@ -244,50 +263,14 @@ public class NoSlow extends Module {
             return;
         }
         if (mc.thePlayer.onGround) {
-            setJump = jumped = true;
+            mc.thePlayer.jump();
+            jumped = true;
             setCancelled = true;
             KeyBinding.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), false);
         }
         else {
             canFloat = true;
         }
-    }
-
-    @SubscribeEvent
-    public void onPostPlayerInput(PostPlayerInputEvent e) {
-        if (setJump) {
-            mc.thePlayer.movementInput.jump = true;
-            setJump = false;
-        }
-    }
-
-    @SubscribeEvent
-    public void onSendPacket(SendPacketEvent e) {
-        if (!Utils.nullCheck()) {
-            return;
-        }
-        if (blink) {
-            if (!e.isCanceled()) {
-                blinkedPackets.add(e.getPacket());
-                e.setCanceled(true);
-            }
-        }
-    }
-
-    private void release() {
-        if (!blink) {
-            return;
-        }
-        synchronized (blinkedPackets) {
-            for (Packet packet : blinkedPackets) {
-                Raven.packetsHandler.handlePacket(packet);
-                PacketUtils.sendPacketNoEvent(packet);
-            }
-        }
-        blinkedPackets.clear();
-        blink = false;
-        blinkTicks = 0;
-        wentOffGround = false;
     }
 
     private boolean blinkConditions() {
@@ -361,15 +344,14 @@ public class NoSlow extends Module {
         canFloat = false;
         setJump = false;
         offsetDelay = 0;
-        floatTicks = 0;
     }
 
     private boolean holdingUsable(ItemStack itemStack) {
         Item heldItem = itemStack.getItem();
-        if (heldItem instanceof ItemFood || heldItem instanceof ItemBucketMilk || (heldItem instanceof ItemBow && Utils.hasArrows(itemStack)) || (heldItem instanceof ItemPotion && !ItemPotion.isSplash(mc.thePlayer.getHeldItem().getItemDamage())) || (heldItem instanceof ItemSword && sword.getInput() == 1)) {
+        if (heldItem instanceof ItemFood || heldItem instanceof ItemBucketMilk || (heldItem instanceof ItemBow && Utils.hasArrows(itemStack)) || (heldItem instanceof ItemPotion && !ItemPotion.isSplash(mc.thePlayer.getHeldItem().getItemDamage()))) {
             return true;
         }
-        if (sword.getInput() == 1 && Utils.holdingSword()) {
+        if (sword.getInput() == 1 && heldItem instanceof ItemSword) {
             return true;
         }
         return false;

@@ -77,6 +77,8 @@ public class ModuleManager {
     public static AntiVoid antiVoid;
     public static Spammer spammer;
     public static AntiDebuff antiDebuff;
+    public static Timers timers;
+    public static LagRange lagRange;
 
     public void register() {
         this.addModule(autoClicker = new AutoClicker());
@@ -165,7 +167,6 @@ public class ModuleManager {
         this.addModule(bedwars = new BedWars());
         this.addModule(fastMine = new FastMine());
         this.addModule(arrows = new Arrows());
-        this.addModule(new JumpReset());
         this.addModule(new Manager());
         this.addModule(new ViewPackets());
         this.addModule(new AutoWho());
@@ -177,6 +178,8 @@ public class ModuleManager {
         this.addModule(antiVoid = new AntiVoid());
         this.addModule(spammer = new Spammer());
         this.addModule(antiDebuff = new AntiDebuff());
+        this.addModule(timers = new Timers());
+        this.addModule(lagRange = new LagRange());
         antiBot.enable();
         Collections.sort(this.modules, Comparator.comparing(Module::getName));
     }

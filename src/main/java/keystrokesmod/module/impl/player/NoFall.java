@@ -38,7 +38,8 @@ public class NoFall extends Module {
     private SliderSetting minFallDistance;
     private ButtonSetting disableAdventure;
     private ButtonSetting ignoreVoid, voidC;
-    private ButtonSetting hideSound, renderTimer;
+    private ButtonSetting hideSound;
+    public ButtonSetting renderTimer;
     private String[] modes = new String[]{"Spoof", "NoGround", "Packet A", "Packet B", "CTW Packet", "Prediction", "Blink"};
 
     private int color = new Color(0, 187, 255, 255).getRGB();
@@ -50,12 +51,7 @@ public class NoFall extends Module {
 
     private int n;
 
-    private ConcurrentLinkedQueue<Packet> blinkedPackets = new ConcurrentLinkedQueue<>();
-    private ConcurrentLinkedQueue<Packet> regularPackets = new ConcurrentLinkedQueue<>();
-    public boolean isBlinking;
-    public boolean bnFalling, start;
-
-    private int blinkTicks;
+    public boolean bnFalling, blink;
 
     private int y;
 
@@ -76,24 +72,8 @@ public class NoFall extends Module {
 
     public void onDisable() {
         Utils.resetTimer();
-
-        if (mc.thePlayer.onGround) {
-            finishBlink();
-        } else {
-            finishBlinkRegular();
-        }
+        blink = false;
     }
-
-    /*@SubscribeEvent
-    public void onReceivePacket(ReceivePacketEvent e) {
-        if (e.getPacket() instanceof S29PacketSoundEffect) {
-            S29PacketSoundEffect s29 = (S29PacketSoundEffect) e.getPacket();
-            /*if (!Objects.equals(String.valueOf(s29.getSoundName()), "random.explode")) {
-
-            }*/
-            /*Utils.print("" + s29.getSoundName());
-        }
-    }*/
 
     /*@SubscribeEvent
     public void onSoundEvent(SoundEvent.SoundSourceEvent e) {
@@ -115,23 +95,20 @@ public class NoFall extends Module {
     public void onPreUpdate(PreUpdateEvent e) {
         if (mode.getInput() == 6) {
             if (Utils.fallDist() >= minFallDistance.getInput() && Utils.isEdgeOfBlock() && mc.thePlayer.onGround && !Utils.jumpDown() && !ModuleManager.scaffold.isEnabled && !ModuleManager.bhop.isEnabled() && !LongJump.function) {
-                start = true;
+                blink = true;
                 y = (int) mc.thePlayer.posY;
             }
-            else if (start && !bnFalling && mc.thePlayer.posY > y) {
-                finishBlinkRegular();
+            else if (blink && !bnFalling && mc.thePlayer.posY > y) {
+                blink = false;
             }
-            if (isBlinking) {
-                ++blinkTicks;
-            }
-            if (mc.thePlayer.posY < y && !mc.thePlayer.onGround && start) {
+            if (mc.thePlayer.posY < y && !mc.thePlayer.onGround && blink) {
                 bnFalling = true;
             }
             else if (bnFalling) {
-                finishBlink();
+                blink = false;
             }
-            if (mc.thePlayer.posY <= y - 31 && start) {
-                finishBlinkRegular();
+            if (mc.thePlayer.posY <= y - 31 && blink) {
+                blink = false;
             }
         }
 
@@ -151,10 +128,6 @@ public class NoFall extends Module {
         }
         else if ((double) mc.thePlayer.fallDistance >= minFallDistance.getInput()) {
             isFalling = true;
-        }
-
-        if (ModuleManager.antiVoid.started) {
-            return;
         }
 
 
@@ -239,101 +212,11 @@ public class NoFall extends Module {
                 e.setOnGround(false);
                 break;
             case 6:
-                if (start) {
+                if (blink) {
                     e.setOnGround(true);
                 }
                 break;
         }
-    }
-
-    private void finishBlink() {
-        isBlinking = bnFalling = start = false;
-        blinkTicks = 0;
-        if (!blinkedPackets.isEmpty()) {
-            synchronized (blinkedPackets) {
-                for (Packet packet : blinkedPackets) {
-                    Raven.packetsHandler.handlePacket(packet);
-                    PacketUtils.sendPacketNoEvent(packet);
-                }
-            }
-        }
-        blinkedPackets.clear();
-        regularPackets.clear();
-    }
-
-    private void finishBlinkRegular() {
-        isBlinking = bnFalling = start = false;
-        blinkTicks = 0;
-        if (!regularPackets.isEmpty()) {
-            synchronized (regularPackets) {
-                for (Packet packet : regularPackets) {
-                    Raven.packetsHandler.handlePacket(packet);
-                    PacketUtils.sendPacketNoEvent(packet);
-                }
-            }
-        }
-        regularPackets.clear();
-        blinkedPackets.clear();
-    }
-
-    /*
-        if (mc.thePlayer.onGround) {
-            synchronized (blinkedPackets) {
-                for (Packet packet : blinkedPackets) {
-                    Raven.packetsHandler.handlePacket(packet);
-                    PacketUtils.sendPacketNoEvent(packet);
-                }
-            }
-        } else {
-            synchronized (regularPackets) {
-                for (Packet packet : regularPackets) {
-                    Raven.packetsHandler.handlePacket(packet);
-                    PacketUtils.sendPacketNoEvent(packet);
-                }
-            }
-        }
-        blinkedPackets.clear();
-        regularPackets.clear();
-     */
-
-    @SubscribeEvent
-    public void onRenderTick(TickEvent.RenderTickEvent ev) {
-        if (!Utils.nullCheck() || !renderTimer.isToggled() || mode.getInput() != 6 || blinkTicks == 0 || blinkTicks >= 99999) {
-            return;
-        }
-        if (ev.phase == TickEvent.Phase.END) {
-            if (mc.currentScreen != null) {
-                return;
-            }
-        }
-        Utils.handleTimer(color, blinkTicks);
-    }
-
-    @SubscribeEvent
-    public void onSendPacket(SendPacketEvent e) {
-        if (!Utils.nullCheck()) {
-            return;
-        }
-        Packet packet = e.getPacket();
-        if (packet.getClass().getSimpleName().startsWith("S")) {
-            return;
-        }
-        if (packet instanceof C00PacketLoginStart || packet instanceof C00Handshake) {
-            return;
-        }
-        if (!start) {
-            return;
-        }
-        if (!e.isCanceled()) {
-            isBlinking = true;
-            regularPackets.add(packet);
-            blinkedPackets.add(packet);
-            e.setCanceled(true);
-        }
-    }
-
-    private boolean otherc03(Packet packet) {
-        return ((packet instanceof C03PacketPlayer.C04PacketPlayerPosition) || (packet instanceof C03PacketPlayer.C05PacketPlayerLook) || (packet instanceof C03PacketPlayer.C06PacketPlayerPosLook));
     }
 
     @Override

@@ -70,6 +70,7 @@ public class Raven {
         MinecraftForge.EVENT_BUS.register(new PingHelper());
         MinecraftForge.EVENT_BUS.register(packetsHandler = new PacketsHandler());
         MinecraftForge.EVENT_BUS.register(new ModuleUtils(this.mc));
+        MinecraftForge.EVENT_BUS.register(new BlinkHandler(this.mc));
         MinecraftForge.EVENT_BUS.register(knockBackHelper = new KnockBackHelper());
         ReflectionUtils.setupFields();
         moduleManager.register();
@@ -83,6 +84,7 @@ public class Raven {
         profileManager.loadProfile("default");
         ReflectionUtils.setKeyBindings();
         MinecraftForge.EVENT_BUS.register(ModuleManager.scaffold);
+        MinecraftForge.EVENT_BUS.register(ModuleManager.timers);
         MinecraftForge.EVENT_BUS.register(ModuleManager.tower);
         commandManager = new CommandManager();
     }

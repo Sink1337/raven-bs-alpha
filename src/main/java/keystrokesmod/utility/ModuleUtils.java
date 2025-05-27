@@ -5,6 +5,7 @@ import keystrokesmod.module.Module;
 import keystrokesmod.module.impl.combat.Velocity;
 import keystrokesmod.module.impl.movement.Bhop;
 import keystrokesmod.module.impl.movement.LongJump;
+import keystrokesmod.module.impl.player.Safewalk;
 import keystrokesmod.module.impl.render.HUD;
 import keystrokesmod.utility.command.CommandManager;
 import net.minecraft.block.*;
@@ -12,6 +13,8 @@ import net.minecraft.client.Minecraft;
 import keystrokesmod.module.ModuleManager;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.item.ItemBlock;
+import net.minecraft.item.ItemStack;
 import net.minecraft.network.Packet;
 import net.minecraft.network.play.client.*;
 import net.minecraft.network.play.server.S12PacketEntityVelocity;
@@ -40,7 +43,7 @@ public class ModuleUtils {
     public static boolean threwFireball, threwFireballLow;
     public static long MAX_EXPLOSION_DIST_SQ = 10;
     private long FIREBALL_TIMEOUT = 500L, fireballTime = 0;
-    public static int inAirTicks, groundTicks, stillTicks;
+    public static int inAirTicks, groundTicks, stillTicks, rcTick;
     public static int fadeEdge;
     public static double offsetValue = 0.00100012;
     public static boolean isAttacking;
@@ -70,15 +73,25 @@ public class ModuleUtils {
 
     private boolean ldmg;
 
+    private int placeFrequency, removeFrequency, heldDelay, rcDelay;
+
+
+    //-0.0784000015258789 = ground value
+
+    //§
+
     @SubscribeEvent
     public void onWorldJoin(EntityJoinWorldEvent e) {
+        if (!Utils.nullCheck()) {
+            return;
+        }
         if (e.entity == mc.thePlayer) {
             ModuleManager.disabler.disablerLoaded = false;
             inAirTicks = 0;
         }
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.HIGH)
     public void onSendPacketAll(SendAllPacketsEvent e) {
         if (!Utils.nullCheck()) {
             return;
@@ -104,21 +117,39 @@ public class ModuleUtils {
 
         if (e.getPacket() instanceof C07PacketPlayerDigging) {
             C07PacketPlayerDigging c07 = (C07PacketPlayerDigging) packet;
+            //Utils.print(String.valueOf(c07.getStatus()));
             if (Objects.equals(String.valueOf(c07.getStatus()), "START_DESTROY_BLOCK")) {
                 isBreaking = true;
             }
-            if (Objects.equals(String.valueOf(c07.getStatus()), "ABORT_DESTROY_BLOCK")) {
+            if (Objects.equals(String.valueOf(c07.getStatus()), "ABORT_DESTROY_BLOCK") || Objects.equals(String.valueOf(c07.getStatus()), "STOP_DESTROY_BLOCK")) {
                 isBreaking = false;
             }
         }
     }
 
-    @SubscribeEvent
+    private boolean sp;
+
+    @SubscribeEvent(priority = EventPriority.LOW)
     public void onSendPacket(SendPacketEvent e) {
         if (!Utils.nullCheck()) {
             return;
         }
         Packet packet = e.getPacket();
+
+        BlockPos pos = mc.objectMouseOver.getBlockPos();
+        if (packet instanceof C07PacketPlayerDigging && !ModuleManager.noSlow.cantBlock) {
+            C07PacketPlayerDigging c07 = (C07PacketPlayerDigging) packet;
+            if (Objects.equals(String.valueOf(c07.getStatus()), "START_DESTROY_BLOCK") || Objects.equals(String.valueOf(c07.getStatus()), "ABORT_DESTROY_BLOCK")) {
+                if (Utils.keybinds.isMouseDown(1) && pos != null) {
+                    //Utils.print("C3 " + mc.thePlayer.ticksExisted);
+                    e.setCanceled(true);
+                }
+            }
+        }
+
+        if (e.getPacket() instanceof C08PacketPlayerBlockPlacement) {
+            placeFrequency++;
+        }
 
         if (e.getPacket() instanceof C09PacketHeldItemChange) {
             swapTick = 2;
@@ -179,7 +210,7 @@ public class ModuleUtils {
     }
 
     private boolean veloBoostConditions() {
-        if (ModuleManager.velocity.isEnabled() && ModuleManager.velocity.velocityModes.getInput() == 2) {
+        if (ModuleManager.velocity.isEnabled() && ModuleManager.velocity.mode.getInput() == 2) {
             return true;
         }
         return false;
@@ -187,6 +218,43 @@ public class ModuleUtils {
 
     @SubscribeEvent
     public void onPreUpdate(PreUpdateEvent e) {
+
+        rcTick = Utils.keybinds.isMouseDown(1) ? ++rcTick : 0;
+
+        //Autoswap option "Legit"
+
+        if (placeFrequency > 0) {
+            if (++removeFrequency > 2) {
+                removeFrequency = 0;
+                placeFrequency--;
+            }
+        }
+        else {
+            removeFrequency = 0;
+        }
+        if (!Utils.keybinds.isMouseDown(1)) {
+            if (++rcDelay > 3) {
+                placeFrequency = 0;
+            }
+            heldDelay = 0;
+        }
+        else {
+            rcDelay = 0;
+        }
+        if (holdingBlocks() && rcDelay == 0) {
+            heldDelay++;
+        } else {
+            if (heldDelay > 0) {
+                heldDelay--;
+            }
+            if (rcDelay == 0) {
+                if (heldDelay > 0 && (placeFrequency > 1 || heldDelay > 4)) {
+                    if (getSlot() != -1 && ModuleManager.autoSwap.legit.isToggled()) {
+                        mc.thePlayer.inventory.currentItem = getSlot();
+                    }
+                }
+            }
+        }
 
         if (bhopBoostConditions()) {
             if (firstDamage && ++ft >= 2) {
@@ -209,10 +277,6 @@ public class ModuleUtils {
                 ft = 0;
             }
         }
-
-        //-0.0784000015258789 = ground value
-
-        //§
 
         double ed = Math.toDegrees(Math.atan2(mc.thePlayer.motionZ, mc.thePlayer.motionX));
         //Utils.print("" + ed);
@@ -290,6 +354,36 @@ public class ModuleUtils {
                 CommandManager.status.cooldown--;
             }
         }
+    }
+
+    private int getSlot() {
+        int slot = -1;
+        int highestStack = -1;
+        ItemStack heldItem = mc.thePlayer.getHeldItem();
+        for (int i = 0; i < 9; ++i) {
+            final ItemStack itemStack = mc.thePlayer.inventory.mainInventory[i];
+            if (itemStack != null && itemStack.getItem() instanceof ItemBlock && Utils.canBePlaced((ItemBlock) itemStack.getItem()) && itemStack.stackSize > 0) {
+                if (Utils.getBedwarsStatus() == 2 && ((ItemBlock) itemStack.getItem()).getBlock() instanceof BlockTNT) {
+                    continue;
+                }
+                if (heldItem != null && heldItem.getItem() instanceof ItemBlock && Utils.canBePlaced((ItemBlock) heldItem.getItem()) && !itemStack.getItem().getClass().equals(heldItem.getItem().getClass())) {
+                    continue;
+                }
+                if (itemStack.stackSize > highestStack) {
+                    highestStack = itemStack.stackSize;
+                    slot = i;
+                }
+            }
+        }
+        return slot;
+    }
+
+    private boolean holdingBlocks() {
+        ItemStack heldItem = mc.thePlayer.getHeldItem();
+        if (heldItem == null || !(heldItem.getItem() instanceof ItemBlock) || !Utils.canBePlaced((ItemBlock) heldItem.getItem())) {
+            return false;
+        }
+        return true;
     }
 
     private boolean tower() {
