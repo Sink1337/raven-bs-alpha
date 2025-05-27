@@ -136,6 +136,7 @@ public class ModuleUtils {
         }
         Packet packet = e.getPacket();
 
+        if (!mc.isSingleplayer()) {
         BlockPos pos = mc.objectMouseOver.getBlockPos();
         if (packet instanceof C07PacketPlayerDigging && !ModuleManager.noSlow.cantBlock) {
             C07PacketPlayerDigging c07 = (C07PacketPlayerDigging) packet;
@@ -146,6 +147,7 @@ public class ModuleUtils {
                 }
             }
         }
+    }
 
         if (e.getPacket() instanceof C08PacketPlayerBlockPlacement) {
             placeFrequency++;
