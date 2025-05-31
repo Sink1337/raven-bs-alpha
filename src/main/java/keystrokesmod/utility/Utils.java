@@ -14,6 +14,7 @@ import keystrokesmod.module.impl.player.Freecam;
 import keystrokesmod.module.impl.render.HUD;
 import keystrokesmod.module.impl.world.AntiBot;
 import keystrokesmod.module.setting.impl.SliderSetting;
+import keystrokesmod.script.ScriptDefaults;
 import net.minecraft.block.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityPlayerSP;
@@ -30,6 +31,7 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.entity.projectile.EntityFireball;
 import net.minecraft.init.Items;
 import net.minecraft.inventory.ContainerPlayer;
 import net.minecraft.item.*;
@@ -89,8 +91,8 @@ public class Utils {
         return tabbedIn() && Mouse.isButtonDown(0) && mc.objectMouseOver != null && mc.objectMouseOver.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK && mc.objectMouseOver.getBlockPos() != null;
     }
 
-    public static void print(String s) {
-        sendRawMessage(s);
+    public static void print(Object s) {
+        sendRawMessage(String.valueOf(s));
     }
 
     public static boolean holdingTNT() {
@@ -98,6 +100,13 @@ public class Utils {
             return false;
         }
         return mc.thePlayer.getHeldItem().getDisplayName().contains("TNT");
+    }
+
+    public static float toPositive(float val) {
+        if (val < 0.0F) {
+            return (((-val) * (-2)) - val);
+        }
+        return val;
     }
 
     public static boolean sneakDown() {
@@ -360,6 +369,13 @@ public class Utils {
                 return yellow;
         }
         return -1;
+    }
+
+    public static int getHurttime(Entity entity) {
+        if (!(entity instanceof EntityLivingBase)) {
+            return -1;
+        }
+        return ((EntityLivingBase) entity).hurtTime;
     }
 
     public static boolean overVoid() {
@@ -990,8 +1006,21 @@ public class Utils {
                     mc.thePlayer.rotationPitch = p;
                 }
             }
-
         }
+    }
+
+    public static float getAngleDifference(float from, float to) {
+        float difference = (to - from) % 360.0F;
+        if (difference < -180.0F) {
+            difference += 360.0F;
+        } else if (difference >= 180.0F) {
+            difference -= 360.0F;
+        }
+        return difference;
+    }
+
+    public static float getPitchDifference(float from, float to) {
+        return (to - from) % 90.0F;
     }
 
     public static float[] getRotationsOld(Entity q) {

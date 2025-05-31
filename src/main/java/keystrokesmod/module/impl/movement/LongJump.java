@@ -32,7 +32,6 @@ public class LongJump extends Module {
     private SliderSetting mode;
 
     private SliderSetting boostSetting;
-    private SliderSetting motionTicks;
     private SliderSetting verticalMotion;
     private SliderSetting motionDecay;
 
@@ -67,7 +66,7 @@ public class LongJump extends Module {
     public int lastSlot = -1, spoofSlot = -1;
     private int stopTime;
     private int rotateTick;
-    private int motionDecayVal;
+    private double motionDecayVal;
 
     private long fireballTime;
     private long MAX_EXPLOSION_DIST_SQ = 9;
@@ -96,8 +95,8 @@ public class LongJump extends Module {
         this.registerSetting(disableKey = new KeySetting("Disable key", Keyboard.KEY_SPACE));
 
         this.registerSetting(boostSetting = new SliderSetting("Horizontal boost", 1.7, 0.0, 2.0, 0.05));
-        this.registerSetting(verticalMotion = new SliderSetting("Vertical motion", 0, 0.4, 0.9, 0.01));
-        this.registerSetting(motionDecay = new SliderSetting("Motion decay", 17, 1, 40, 1));
+        this.registerSetting(verticalMotion = new SliderSetting("Vertical motion", 0, 0.3, 1, 0.01));
+        this.registerSetting(motionDecay = new SliderSetting("Motion decay", "%", 43, 1, 100, 1));
         this.registerSetting(allowStrafe = new ButtonSetting("Allow strafe", false));
         this.registerSetting(invertYaw = new ButtonSetting("Invert yaw", true));
         this.registerSetting(stopMovement = new ButtonSetting("Stop movement", false));
@@ -226,7 +225,7 @@ public class LongJump extends Module {
         if (notMoving) {
             motionDecayVal = 21;
         } else {
-            motionDecayVal = (int) motionDecay.getInput();
+            motionDecayVal = (motionDecay.getInput() / 2.5);
         }
         if (stopTime == -1 && ++boostTicks > (!verticalKey() ? 33/*flat motion ticks*/ : (!notMoving ? 32/*normal motion ticks*/ : 33/*vertical motion ticks*/))) {
             disabled();
@@ -384,6 +383,9 @@ public class LongJump extends Module {
                 e.setCanceled(true);
                 //Utils.print("0 fb time / out of dist");
             }
+            if (!mc.thePlayer.onGround) {
+                disabled();
+            }
 
             stopTime = -1;
             fireballTime = 0;
@@ -486,7 +488,7 @@ public class LongJump extends Module {
     private void modifyVertical() {
         if (verticalMotion.getInput() != 0) {
             double ver = ((!notMoving ? verticalMotion.getInput() : 1.16 /*vertical*/) * (1.0 / (1.0 + (0.05 * getSpeedLevel())))) + Utils.randomizeDouble(0.0001, 0.1);
-            double decay = motionDecay.getInput() / 1000;
+            double decay = motionDecayVal / 1000;
             if (mode.getInput() == 0) {
                 if (boostTicks > 1 && !verticalKey()) {
                     if (boostTicks > 1 || boostTicks <= (!notMoving ? 32/*horizontal motion ticks*/ : 33/*vertical motion ticks*/)) {

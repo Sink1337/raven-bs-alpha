@@ -54,7 +54,6 @@ public class ModuleUtils {
     public static boolean lastTickOnGround, lastTickPos1, lastYDif;
     private boolean thisTickOnGround, thisTickPos1;
     public static boolean firstDamage;
-    private int ft;
 
     public static boolean isBlocked;
 
@@ -127,27 +126,11 @@ public class ModuleUtils {
         }
     }
 
-    private boolean sp;
-
     @SubscribeEvent(priority = EventPriority.LOW)
     public void onSendPacket(SendPacketEvent e) {
         if (!Utils.nullCheck()) {
             return;
         }
-        Packet packet = e.getPacket();
-
-        if (!mc.isSingleplayer()) {
-        BlockPos pos = mc.objectMouseOver.getBlockPos();
-        if (packet instanceof C07PacketPlayerDigging && !ModuleManager.noSlow.cantBlock) {
-            C07PacketPlayerDigging c07 = (C07PacketPlayerDigging) packet;
-            if (Objects.equals(String.valueOf(c07.getStatus()), "START_DESTROY_BLOCK") || Objects.equals(String.valueOf(c07.getStatus()), "ABORT_DESTROY_BLOCK")) {
-                if (Utils.keybinds.isMouseDown(1) && pos != null) {
-                    //Utils.print("C3 " + mc.thePlayer.ticksExisted);
-                    e.setCanceled(true);
-                }
-            }
-        }
-    }
 
         if (e.getPacket() instanceof C08PacketPlayerBlockPlacement) {
             placeFrequency++;
@@ -199,9 +182,40 @@ public class ModuleUtils {
         }
     }
 
+    private int ft = 0;
+
     @SubscribeEvent
     public void onPostMotion(PostMotionEvent e) {
-
+        if (mc.thePlayer.hurtTime == 9 || mc.thePlayer.hurtTime == 0) {
+            ft = 0;
+        }
+        if (bhopBoostConditions()) {
+            if (mc.thePlayer.hurtTime > 0 && ft == 0) {
+                double base = Utils.getHorizontalSpeed();
+                if (base <= 0) {
+                    base = 0.01;
+                }
+                Utils.setSpeed(base);
+                ft = -1;
+            }
+        }
+        if (veloBoostConditions()) {
+            if (mc.thePlayer.hurtTime > 0 && ft == 0) {
+                double added = 0;
+                if (Utils.getHorizontalSpeed() <= Velocity.minExtraSpeed.getInput()) {
+                    added = Velocity.extraSpeedBoost.getInput() / 100;
+                    if (Velocity.reverseDebug.isToggled()) {
+                        Utils.print("&7[&dR&7] Applied extra boost | Original speed: " + Utils.getHorizontalSpeed());
+                    }
+                }
+                double base = Utils.getHorizontalSpeed();
+                if (base <= 0) {
+                    base = 0.01;
+                }
+                Utils.setSpeed((base * (Velocity.reverseHorizontal.getInput() / 100)) * (1 + added));
+                ft = -1;
+            }
+        }
     }
 
     private boolean bhopBoostConditions() {
@@ -257,31 +271,6 @@ public class ModuleUtils {
                 }
             }
         }
-
-        if (bhopBoostConditions()) {
-            if (firstDamage && ++ft >= 2) {
-                Utils.setSpeed(Utils.getHorizontalSpeed());
-                firstDamage = false;
-                ft = 0;
-            }
-        }
-        if (veloBoostConditions()) {
-            if (firstDamage && ++ft >= 2) {
-                double added = 0;
-                if (Utils.getHorizontalSpeed() <= Velocity.minExtraSpeed.getInput()) {
-                    added = Velocity.extraSpeedBoost.getInput() / 100;
-                    if (Velocity.reverseDebug.isToggled()) {
-                        Utils.print("&7[&dR&7] Applied extra boost | Original speed: " + Utils.getHorizontalSpeed());
-                    }
-                }
-                Utils.setSpeed((Utils.getHorizontalSpeed() * (Velocity.reverseHorizontal.getInput() / 100)) * (1 + added));
-                firstDamage = false;
-                ft = 0;
-            }
-        }
-
-        double ed = Math.toDegrees(Math.atan2(mc.thePlayer.motionZ, mc.thePlayer.motionX));
-        //Utils.print("" + ed);
 
         if (swapTick > 0) {
             --swapTick;
@@ -395,6 +384,10 @@ public class ModuleUtils {
     @SubscribeEvent
     public void onPreMotion(PreMotionEvent e) {
         int simpleY = (int) Math.round((e.posY % 1) * 10000);
+
+        /*if (ModuleManager.killAura.blockingClient || ModuleManager.noSlow.blockingClient || mc.gameSettings.keyBindUseItem.isKeyDown()) {
+            Utils.print("ka: " + ModuleManager.killAura.blockingClient + " | ns: " + ModuleManager.noSlow.blockingClient + " | use: " + mc.gameSettings.keyBindUseItem.isKeyDown());
+        }*/
 
         if (ModuleManager.scaffold.offsetDelay > 0) {
             --ModuleManager.scaffold.offsetDelay;

@@ -65,6 +65,7 @@ public class BedAura extends Module {
     private BlockPos rotateLastBlock;
     private boolean spoofGround, firstStop;
     private boolean isBreaking, startPacket, stopPacket, ignoreSlow, delayStop;
+    private boolean ra;
 
     public BedAura() {
         super("BedAura", category.player, 0);
@@ -93,11 +94,7 @@ public class BedAura extends Module {
     public void onDisable() {
         reset(true, true);
         bedPos = null;
-    }
-
-    @SubscribeEvent(priority = EventPriority.HIGHEST) // takes priority over ka & antifireball
-    public void onPreUpdate(PreUpdateEvent e) {
-
+        ra = false;
     }
 
     @SubscribeEvent
@@ -127,6 +124,10 @@ public class BedAura extends Module {
     public void onClientRotation(ClientRotationEvent e) {
         if (!Utils.nullCheck()) {
             return;
+        }
+        if (ra) {
+            setRots(e);
+            ra = false;
         }
         if (delayStop) {
             delayStop = false;
@@ -193,6 +194,11 @@ public class BedAura extends Module {
             }
         }
 
+        spoofGround = false;
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void onPreUpdate(PreUpdateEvent e) {
         if (startPacket) {
             mc.thePlayer.sendQueue.addToSendQueue(new C07PacketPlayerDigging(C07PacketPlayerDigging.Action.START_DESTROY_BLOCK, packetPos, EnumFacing.UP));
             swing();
@@ -211,7 +217,7 @@ public class BedAura extends Module {
             swing();
         }
 
-        startPacket = stopPacket = spoofGround = false;
+        startPacket = stopPacket = false;
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
@@ -393,10 +399,11 @@ public class BedAura extends Module {
         isBreaking = true;
         breakTick = true;
 
-        if (Utils.distanceToGround() < 3) {
+        //if (Utils.distanceToGround() < 3) {
             ignoreSlow = true;
-            spoofGround = true;
-        }
+            //spoofGround = true;
+        //}
+        ra = true;
     }
 
     private void stopBreak(ClientRotationEvent e, BlockPos blockPos) {
@@ -409,6 +416,7 @@ public class BedAura extends Module {
             spoofGround = true;
         }
         ignoreSlow = false;
+        ra = true;
     }
 
     private void swing() {
@@ -442,7 +450,6 @@ public class BedAura extends Module {
         if ((breakProgress <= 0 || breakProgress >= 1) && mode.getInput() == 2 && !firstStop) {
             firstStop = true;
             stopAutoblock = delayStop = true;
-            setRots(e);
             return;
         }
         if (mode.getInput() == 2 || mode.getInput() == 0) {

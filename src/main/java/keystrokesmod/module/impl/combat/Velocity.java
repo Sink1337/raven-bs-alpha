@@ -357,7 +357,7 @@ public class Velocity extends Module {
     }
 
     public boolean dontEditMotion() {
-        if (mc.thePlayer.motionY >= verticalM.getInput() && !mc.thePlayer.onGround || mode.getInput() == 1 && zzWhileNotTargeting.isToggled() && KillAura.attackingEntity != null) {
+        if (mc.thePlayer.motionY >= verticalM.getInput() && !mc.thePlayer.onGround || mode.getInput() == 1 && zzWhileNotTargeting.isToggled() && KillAura.attackingEntity == null) {
             return true;
         }
         return false;

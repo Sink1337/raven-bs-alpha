@@ -202,7 +202,9 @@ public class Scaffold extends Module {
         if (!isEnabled) {
             return;
         }
-        e.setCanceled(true);
+        if (e.button == 0 || e.button == 1) {
+            e.setCanceled(true);
+        }
     }
 
     @SubscribeEvent
@@ -229,7 +231,7 @@ public class Scaffold extends Module {
                 }
             } else if (fakeRotation.getInput() == 3) {
                 fakeYaw2 = mc.thePlayer.rotationYaw - hardcodedYaw();
-                float yawDifference = getAngleDifference(lastEdge2, fakeYaw2);
+                float yawDifference = Utils.getAngleDifference(lastEdge2, fakeYaw2);
                 float smoothingFactor = 0.35f;
                 fakeYaw2 = (lastEdge2 + yawDifference * smoothingFactor);
                 lastEdge2 = fakeYaw2;
@@ -251,7 +253,7 @@ public class Scaffold extends Module {
                     fakeYaw2 = mc.thePlayer.rotationYaw - hardcodedYaw() - 180;
                     fakePitch = 88F;
                 }
-                float yawDifference = getAngleDifference(lastEdge2, fakeYaw2);
+                float yawDifference = Utils.getAngleDifference(lastEdge2, fakeYaw2);
                 float smoothingFactor = 0.35f;
                 fakeYaw2 = (lastEdge2 + yawDifference * smoothingFactor);
                 lastEdge2 = fakeYaw2;
@@ -332,7 +334,7 @@ public class Scaffold extends Module {
                         floatTicks = 0;
                     }
                     else {
-                        e.setPosY(e.getPosY() + 1e-8);
+                        e.setPosY(e.getPosY() + 1e-4);
                     }
                     if (sprint.getInput() == 2 && Utils.isMoving() && !ModuleManager.invmove.active()) Utils.setSpeed(getFloatSpeed(getSpeedLevel()));
                     ModuleUtils.groundTicks = 0;
@@ -422,6 +424,7 @@ public class Scaffold extends Module {
                     //yaw += 45;
                 }
                 e.setRotations(yaw, pitch);
+                theYaw = yaw;
                 break;
             case 2:
                 offsetRots(e);
@@ -487,7 +490,7 @@ public class Scaffold extends Module {
         double dif = (lastMY - getMotionYaw());
         double v = 2.5;
         float offset = (yawWithOffset - yawBackwards2);
-        Utils.print("" + offset);
+        Utils.print(offset);
         if (offset > yawAngle || offset < -yawAngle) {
             lastYawS = getSmooth = smoothedYaw = yaw;
             return;
@@ -498,7 +501,7 @@ public class Scaffold extends Module {
         }
 
         getSmooth = yaw;
-        float yawDifference = getAngleDifference(lastYawS, getSmooth);
+        float yawDifference = Utils.getAngleDifference(lastYawS, getSmooth);
         float smoothingFactor = 0.1f;
         getSmooth = (lastYawS + yawDifference * smoothingFactor);
         lastYawS = getSmooth;
@@ -524,36 +527,36 @@ public class Scaffold extends Module {
 
         long strokeDelay = 250;
 
-        float first = 77.5F;
-        float sec = 77.5F;
+        float first = 76F;
+        float sec = 76F;
 
         if (quad <= 5 || quad >= 85) {
-            yawAngle = 123.425F;
+            yawAngle = 126.425F;
             minOffset = 11;
             minPitch = first;
         }
         if (quad > 5 && quad <= 15 || quad >= 75 && quad < 85) {
-            yawAngle = 125.825F;
+            yawAngle = 127.825F;
             minOffset = 9;
             minPitch = first;
         }
         if (quad > 15 && quad <= 25 || quad >= 65 && quad < 75) {
-            yawAngle = 128.625F;
+            yawAngle = 129.625F;
             minOffset = 8;
             minPitch = first;
         }
         if (quad > 25 && quad <= 32 || quad >= 58 && quad < 65) {
-            yawAngle = 131.625F;
+            yawAngle = 130.485F;
             minOffset = 7;
             minPitch = sec;
         }
         if (quad > 32 && quad <= 38 || quad >= 52 && quad < 58) {
-            yawAngle = 133.825F;
+            yawAngle = 132.825F;
             minOffset = 6;
             minPitch = sec;
         }
         if (quad > 38 && quad <= 42 || quad >= 48 && quad < 52) {
-            yawAngle = 135.825F;
+            yawAngle = 135.485F;
             minOffset = 4;
             minPitch = sec;
         }
@@ -562,7 +565,7 @@ public class Scaffold extends Module {
             minOffset = 3;
             minPitch = sec;
         }
-        //Utils.print("" + minOffset);
+        //String.valueOf(Utils.print("" + minOffset);
         //float offsetAmountD = ((((float) offsetAmount.getInput() / 10) - 10) * -2) - (((float) offsetAmount.getInput() / 10) - 10);
         //yawAngle += offsetAmountD;
         //Utils.print("" + offsetAmountD);
@@ -1055,16 +1058,6 @@ public class Scaffold extends Module {
 
     public boolean stopFastPlace() {
         return this.isEnabled();
-    }
-
-    float getAngleDifference(float from, float to) {
-        float difference = (to - from) % 360.0F;
-        if (difference < -180.0F) {
-            difference += 360.0F;
-        } else if (difference >= 180.0F) {
-            difference -= 360.0F;
-        }
-        return difference;
     }
 
     public void rotateForward(boolean delay) {

@@ -169,7 +169,7 @@ public abstract class MixinEntityPlayer extends EntityLivingBase {
 
     @Inject(method = "isBlocking", at = @At("RETURN"), cancellable = true)
     private void isBlocking(CallbackInfoReturnable<Boolean> cir) {
-        if (ModuleManager.killAura != null && ModuleManager.killAura.isEnabled() && ModuleManager.killAura.blockingClient && ((Object) this) == Minecraft.getMinecraft().thePlayer) {
+        if ((ModuleManager.killAura != null && ModuleManager.killAura.isEnabled() && ModuleManager.killAura.blockingClient || ModuleManager.noSlow != null && ModuleManager.noSlow.isEnabled() && ModuleManager.noSlow.blockingClient) && ((Object) this) == Minecraft.getMinecraft().thePlayer) {
             cir.setReturnValue(true);
         }
         cir.setReturnValue(cir.getReturnValue());

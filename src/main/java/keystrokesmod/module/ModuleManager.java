@@ -46,7 +46,7 @@ public class ModuleManager {
     public static Module timer;
     public static Fly fly;
     public static Module wTap;
-    public static TargetHUD targetHUD;
+    public static TargetInfo targetInfo;
     public static NoFall noFall;
     public static Disabler disabler;
     public static NoRotate noRotate;
@@ -143,7 +143,7 @@ public class ModuleManager {
         this.addModule(wTap = new WTap());
         this.addModule(new Xray());
         this.addModule(new BridgeInfo());
-        this.addModule(targetHUD = new TargetHUD());
+        this.addModule(targetInfo = new TargetInfo());
         this.addModule(new DuelsStats());
         this.addModule(antiFireball = new AntiFireball());
         this.addModule(bedESP = new BedESP());

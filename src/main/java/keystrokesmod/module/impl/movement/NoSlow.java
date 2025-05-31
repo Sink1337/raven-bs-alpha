@@ -23,6 +23,7 @@ import net.minecraft.network.Packet;
 import net.minecraft.network.play.client.*;
 import net.minecraft.util.BlockPos;
 import net.minecraftforge.client.event.MouseEvent;
+import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import org.lwjgl.input.Mouse;
@@ -37,7 +38,6 @@ public class NoSlow extends Module {
     public static ButtonSetting disableBow;
     public static ButtonSetting disablePotions;
     public static ButtonSetting swordOnly;
-    public static ButtonSetting slowFirstJump;
     public ButtonSetting renderTimer;
 
     private String[] swordMode = new String[] { "Vanilla", "Item mode", "Fake" };
@@ -46,19 +46,16 @@ public class NoSlow extends Module {
     private String[] vanillaModes = new String[] { "Default", "Only on ground" };
 
     private boolean postPlace;
-    private boolean canFloat, cs;
+    private boolean canFloat;
     public boolean noSlowing;
     public boolean offset;
-    public static boolean canSlow;
-    private int offsetDelay;
-    private boolean setJump;
-    private boolean bl;
+    public boolean blockingClient;
     public boolean blink;
     private boolean wentOffGround;
     private boolean requireJump;
     private static boolean fix;
-    private boolean didC;
-    private boolean jumped, setCancelled;
+    private boolean didC, md;
+    private boolean jumped, setCancelled, setJump;
     public boolean fn;
 
     public NoSlow() {
@@ -66,7 +63,6 @@ public class NoSlow extends Module {
         this.registerSetting(new DescriptionSetting("Default is 80% motion reduction."));
         this.registerSetting(sword = new SliderSetting("Sword", 0, swordMode));
         this.registerSetting(mode = new SliderSetting("Item", 0, modes));
-        this.registerSetting(slowFirstJump = new ButtonSetting("Slow first jump", false));
         this.registerSetting(vanillaMode = new SliderSetting("Vanilla mode", 0, vanillaModes));
         this.registerSetting(blinkMode = new SliderSetting("Blink Mode", 0, blinkModes));
         this.registerSetting(renderTimer = new ButtonSetting("Render timer", false));
@@ -77,7 +73,6 @@ public class NoSlow extends Module {
     }
 
     public void guiUpdate() {
-        this.slowFirstJump.setVisible(mode.getInput() == 4, this);
         this.renderTimer.setVisible(mode.getInput() == 5, this);
         this.blinkMode.setVisible(mode.getInput() == 5, this);
         this.vanillaMode.setVisible(mode.getInput() == 0, this);
@@ -87,22 +82,41 @@ public class NoSlow extends Module {
     public void onDisable() {
         resetFloat();
         noSlowing = false;
-        if (bl) {
-            ReflectionUtils.setItemInUse(false);
-            bl = false;
+        if (blockingClient) {
+            ReflectionUtils.setItemInUse(blockingClient = false);
         }
         blink = wentOffGround = false;
         fn = false;
-        cs = canSlow = false;
         cantBlock = false;
+        setCancelled = false;
+    }
+
+    @SubscribeEvent
+    public void onMouse(MouseEvent e) {
+
+        if (e.button == 1) {
+            handleFloatSetup();
+            if (setCancelled) {
+                setCancelled = false;
+                e.setCanceled(true);
+            }
+        }
+
+        if (sword.getInput() == 2 && Utils.tabbedIn() && !ModuleManager.killAura.blockingClient) {
+            if (e.button == 1) {
+                EntityLivingBase g = Utils.raytrace(4);
+                if (Utils.holdingSword() && g == null && !BlockUtils.isInteractable(mc.objectMouseOver)) {
+                    e.setCanceled(true);
+                }
+            }
+        }
     }
 
     @SubscribeEvent
     public void onPreUpdate(PreUpdateEvent e) {
         boolean apply = getSlowed() != 0.2f;
         if (!apply || !mc.thePlayer.isUsingItem()) {
-            blink = wentOffGround = canSlow = false;
-            cs = true;
+            blink = wentOffGround = false;
             return;
         }
         postPlace = false;
@@ -124,16 +138,9 @@ public class NoSlow extends Module {
                 }
                 break;
             case 4:
-                if (slowFirstJump.isToggled()) {
-                    if (cs) {
-                        canSlow = true;
-                        cs = false;
-                        mc.thePlayer.setSprinting(false);
-                    } else if (mc.thePlayer.onGround) {
-                        canSlow = false;
-                    }
+                if (Mouse.isButtonDown(1)) {
+                    handleFloatSetup();
                 }
-                handleFloatSetup();
                 if (!blockConditions()) {
                     didC = true;
                     requireJump = true;
@@ -165,6 +172,14 @@ public class NoSlow extends Module {
         }
     }
 
+    @SubscribeEvent
+    public void onPostPlayerInput(PostPlayerInputEvent e) {
+        if (setJump) {
+            mc.thePlayer.movementInput.jump = true;
+            setJump = false;
+        }
+    }
+
     private boolean blocking;
 
     public boolean cantBlock;
@@ -173,41 +188,55 @@ public class NoSlow extends Module {
     public void onPreMotion(PreMotionEvent e) {
         fn = false;
         EntityLivingBase g = Utils.raytrace(4);
+        if (ModuleManager.killAura.blockingClient) {
+            blockingClient = false;
+        }
+        if (blockingClient && (!Mouse.isButtonDown(1) && !ModuleManager.killAura.blockingClient || !Utils.holdingSword())) {
+            ReflectionUtils.setItemInUse(blockingClient = false);
+        }
         if (sword.getInput() == 2 && !ModuleManager.killAura.blockingClient) {
-            if (blocking && (g == null && !BlockUtils.isInteractable(mc.objectMouseOver) || !Utils.holdingSword() && !Utils.keybinds.isMouseDown(1))) {
+            if (blocking && (g == null && !BlockUtils.isInteractable(mc.objectMouseOver) || !Utils.holdingSword() && !Utils.keybinds.isMouseDown(1) || !Utils.tabbedIn())) {
                 KeyBinding.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), false);
                 blocking = false;
             }
-            if (Utils.holdingSword() && Utils.tabbedIn() && Mouse.isButtonDown(1)) {
+            if (Utils.holdingSword()) {
                 if (g == null && !BlockUtils.isInteractable(mc.objectMouseOver)) {
                     cantBlock = true;
+
+                    if (Utils.tabbedIn() && Mouse.isButtonDown(1)) {
+                        blockingClient = true;
+                    }
                 } else {
                     blocking = true;
                     cantBlock = false;
                 }
-                ReflectionUtils.setItemInUse(true);
-                bl = true;
-                if (Mouse.isButtonDown(0)) {
-                    mc.thePlayer.swingItem();
+                if (blockingClient) {
+                    ReflectionUtils.setItemInUse(true);
+                    if (Mouse.isButtonDown(0)) {
+                        mc.thePlayer.swingItem();
+                    }
                 }
             }
-            else if (bl) {
-                ReflectionUtils.setItemInUse(false);
-                bl = false;
+            else {
+                cantBlock = false;
             }
         }
         else {
             cantBlock = false;
         }
+
+        if (!Mouse.isButtonDown(1)) {
+            md = false;
+        }
+
         postPlace = false;
         if (mode.getInput() != 4) {
             return;
         }
         boolean apply = getSlowed() != 0.2f;
-        if (!Mouse.isButtonDown(1) || !apply || fix || didC || !holdingUsable(mc.thePlayer.getHeldItem())) {
+        if (!Mouse.isButtonDown(1) || !apply || fix || didC || !holdingUsable(mc.thePlayer.getHeldItem()) || !Utils.tabbedIn()) {
             resetFloat();
             noSlowing = false;
-            offsetDelay = 0;
             if (!Mouse.isButtonDown(1)) {
                 fix = didC = requireJump = false;
             }
@@ -216,16 +245,17 @@ public class NoSlow extends Module {
         if (!canFloat && jumped && ModuleUtils.inAirTicks > 1) {
             KeyBinding.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), true);
             canFloat = true;
+            setCancelled = false;
         }
-        else if (canFloat && canFloat() && !requireJump && (!jumped || ++offsetDelay > 1)) {
-            fn = true;
+        else if (canFloat && canFloat() && !requireJump) {
+            fn = md = true;
             if (!mc.thePlayer.onGround) {
                 //-0.0784000015258789 ground value
-                if (mc.thePlayer.motionY <= -0.1784000015258789) {
-                    e.setPosY(e.getPosY() + 1e-3);
-                } else {
+                //if (mc.thePlayer.motionY <= -0.1784000015258789) {
+                    //e.setPosY(e.getPosY() + 1e-3);
+                //} else {
                     e.setPosY(e.getPosY() - 1e-3);
-                }
+                //}
             }
             else {
                 e.setPosY(e.getPosY() + 1e-3);
@@ -233,24 +263,16 @@ public class NoSlow extends Module {
         }
     }
 
-    @SubscribeEvent
-    public void onMouse(MouseEvent e) {
-        if (sword.getInput() == 2 && Utils.tabbedIn() && !ModuleManager.killAura.blockingClient) {
-            if (e.button == 1) {
-                EntityLivingBase g = Utils.raytrace(4);
-                if (Utils.holdingSword() && g == null && !BlockUtils.isInteractable(mc.objectMouseOver)) {
-                    e.setCanceled(true);
-                }
-            }
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public void onSendPacket(SendPacketEvent e) {
+        if (!Utils.nullCheck()) {
+            return;
         }
-
-        handleFloatSetup();
-
-        if (setCancelled) {
-            if (e.button == 1) {
+        Packet packet = e.getPacket();
+        if (packet instanceof C08PacketPlayerBlockPlacement) {
+            if (cantBlock && !ModuleManager.killAura.targeting) {
                 e.setCanceled(true);
             }
-            setCancelled = false;
         }
     }
 
@@ -259,11 +281,11 @@ public class NoSlow extends Module {
         if (mode.getInput() != 4) {
             return;
         }
-        if (!Mouse.isButtonDown(1) || !apply || fix || didC || !holdingUsable(mc.thePlayer.getHeldItem()) || canFloat || jumped) {
+        if (!apply || fix || didC || !holdingUsable(mc.thePlayer.getHeldItem()) || canFloat || jumped || BlockUtils.isInteractable(mc.objectMouseOver) || md) {
             return;
         }
         if (mc.thePlayer.onGround) {
-            mc.thePlayer.jump();
+            setJump = true;
             jumped = true;
             setCancelled = true;
             KeyBinding.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), false);
@@ -342,8 +364,6 @@ public class NoSlow extends Module {
     private void resetFloat() {
         jumped = false;
         canFloat = false;
-        setJump = false;
-        offsetDelay = 0;
     }
 
     private boolean holdingUsable(ItemStack itemStack) {

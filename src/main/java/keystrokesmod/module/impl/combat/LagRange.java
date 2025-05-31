@@ -90,6 +90,11 @@ public class LagRange extends Module {
             function = false;
         }
 
+        if (mc.thePlayer.motionX == 0.0D && mc.thePlayer.motionY == -0.0784000015258789D && mc.thePlayer.motionZ == 0.0D && !Utils.isMoving()) {
+            disableTicks = 1;
+            function = false;
+        }
+
         a(boxSize, myPosition);
 
         boolean correctHeldItem = !weaponOnly.isToggled();
@@ -148,11 +153,7 @@ public class LagRange extends Module {
     public void onSendPacket(SendPacketEvent e) {
         if (e.getPacket() instanceof C02PacketUseEntity) {
             C02PacketUseEntity c02 = (C02PacketUseEntity) e.getPacket();
-            keystrokesmod.script.model.Entity enemy = keystrokesmod.script.model.Entity.convert(c02.getEntityFromWorld(mc.theWorld));
-            if (enemy != ScriptDefaults.client.getPlayer()) {
-                return;
-            }
-            int enemyHT = enemy.getHurtTime();
+            int enemyHT = Utils.getHurttime(c02.getEntityFromWorld(mc.theWorld));
             if (Objects.equals(String.valueOf(c02.getAction()), "ATTACK")) {
                 if (enemyHT <= hurttime.getInput()) {
                     disableTicks = 1;

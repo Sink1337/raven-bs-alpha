@@ -25,10 +25,11 @@ import org.lwjgl.opengl.GL11;
 import java.awt.*;
 import java.io.IOException;
 
-public class TargetHUD extends Module {
+public class TargetInfo extends Module {
     private SliderSetting mode;
     private SliderSetting theme;
-    private ButtonSetting renderEsp;
+    private ButtonSetting renderHUD, renderESP;
+    private SliderSetting espMode;
     private ButtonSetting showStatus;
     private ButtonSetting healthColor;
     private Timer fadeTimer;
@@ -37,22 +38,30 @@ public class TargetHUD extends Module {
     private long lastAliveMS;
     private double lastHealth;
     private float lastHealthBar;
-    public EntityLivingBase renderEntity;
     public int posX = 70;
     public int posY = 30;
     private String[] modes = new String[]{ "Modern", "Legacy" };
+    private String[] espModes = new String[]{ "Theme", "Team", "Hurttime" };
+    private SliderSetting min;
 
-    public TargetHUD() {
-        super("TargetHUD", category.render);
+    public TargetInfo() {
+        super("TargetInfo", category.render);
         this.registerSetting(new DescriptionSetting("Only works with KillAura."));
+        this.registerSetting(renderHUD = new ButtonSetting("Render HUD", true));
         this.registerSetting(mode = new SliderSetting("Mode", 1, modes));
         this.registerSetting(theme = new SliderSetting("Theme", 0, Theme.themes));
         this.registerSetting(new ButtonSetting("Edit position", () -> {
             mc.displayGuiScreen(new EditScreen());
         }));
-        this.registerSetting(renderEsp = new ButtonSetting("Render ESP", true));
+        this.registerSetting(renderESP = new ButtonSetting("Render ESP", true));
+        this.registerSetting(espMode = new SliderSetting("ESP mode", 1, espModes));
+        this.registerSetting(min = new SliderSetting("Minimum hurttime", 1, 1, 9, 1));
         this.registerSetting(showStatus = new ButtonSetting("Show win or loss", true));
         this.registerSetting(healthColor = new ButtonSetting("Traditional health color", false));
+    }
+
+    public void guiUpdate() {
+        this.min.setVisible(espMode.getInput() == 2, this);
     }
 
     public void onDisable() {
@@ -92,21 +101,35 @@ public class TargetHUD extends Module {
             }
             lastHealth = health;
             playerInfo += " " + Utils.getHealthStr(target, true);
-            drawTargetHUD(fadeTimer, playerInfo, health);
+            if (renderHUD.isToggled()) {
+                drawTargetHUD(fadeTimer, playerInfo, health);
+            }
         }
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onRenderWorld(RenderWorldLastEvent renderWorldLastEvent) {
-        if (!renderEsp.isToggled() || !Utils.nullCheck()) {
+        if (!renderESP.isToggled() || !Utils.nullCheck()) {
             return;
         }
         if (KillAura.target != null) {
-            RenderUtils.renderEntity(KillAura.target, 2, 0.0, 0.0, Theme.getGradient((int) theme.getInput(), 0), false);
+            RenderUtils.renderEntity(KillAura.target, 2, 0.0, 0.0, returnColor(), false);
         }
-        else if (renderEntity != null) {
-            RenderUtils.renderEntity(renderEntity, 2, 0.0, 0.0, Theme.getGradient((int) theme.getInput(), 0), false);
+    }
+
+    private int returnColor() {
+        if (espMode.getInput() == 0) {
+            return Theme.getGradient((int) theme.getInput(), 0);
         }
+        if (espMode.getInput() == 1) {
+            return Utils.mergeAlpha(Utils.getColorFromEntity(KillAura.target), 255);
+        }
+        if (espMode.getInput() == 2) {
+            int dc = new Color(251, 86, 86, 255).getRGB();
+            int nc = new Color(107, 255, 103, 255).getRGB();
+            return (Utils.getHurttime(KillAura.target) >= min.getInput() ? dc : nc);
+        }
+        return 0;
     }
 
     private void drawTargetHUD(Timer fadeTimer, String string, double health) {
@@ -198,7 +221,6 @@ public class TargetHUD extends Module {
         fadeTimer = null;
         target = null;
         healthBarTimer = null;
-        renderEntity = null;
     }
 
     class EditScreen extends GuiScreen {
