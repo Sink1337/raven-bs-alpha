@@ -148,12 +148,12 @@ public class Velocity extends Module {
             if (switchToReverse.isPressed() && mode.getInput() == 1 && !buttonDown) {
                 mode.setValue(2);
                 buttonDown = true;
-                Utils.print(Utils.formatColor("&7[&dR&7]&7 Switched to &bReverse&7 Velocity mode"));
+                Utils.modulePrint(Utils.formatColor("&7[&dR&7]&7 Switched to &bReverse&7 Velocity mode"));
             }
             if (switchToPacket.isPressed() && mode.getInput() == 2 && !buttonDown) {
                 mode.setValue(1);
                 buttonDown = true;
-                Utils.print(Utils.formatColor("&7[&dR&7]&7 Switched to &bPacket&7 Velocity mode"));
+                Utils.modulePrint(Utils.formatColor("&7[&dR&7]&7 Switched to &bPacket&7 Velocity mode"));
             }
         }
         if (switchToReverse.isPressed() || switchToPacket.isPressed()) {

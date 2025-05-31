@@ -95,6 +95,10 @@ public class Utils {
         sendRawMessage(String.valueOf(s));
     }
 
+    public static void modulePrint(Object s) {
+        sendRawMessage(String.valueOf(s));
+    }
+
     public static boolean holdingTNT() {
         if (mc.thePlayer.getHeldItem() == null) {
             return false;

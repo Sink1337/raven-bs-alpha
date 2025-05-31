@@ -239,15 +239,12 @@ public class KillAura extends Module {
             if (Raven.packetsHandler.C07.sentCurrentTick.get()) {
                 return;
             }
-            if (blockingClient) {
-                ReflectionUtils.setItemInUse(blockingClient = false);
-            }
             sendDigPacket();
             return;
         }
         if (target == null) {
-            handleBlocking(false);
             resetAutoblock(true);
+            handleBlocking(false);
             return;
         }
         if (ModuleManager.bedAura.stopAutoblock) {
@@ -402,7 +399,7 @@ public class KillAura extends Module {
     @SubscribeEvent
     public void onMouse(MouseEvent e) {
         if (e.button == 0 || e.button == 1) {
-            if (!Utils.holdingWeapon() || target == null) {
+            if (!Utils.holdingWeapon() || target == null || !settingCondition()) {
                 return;
             }
             e.setCanceled(true);
@@ -484,7 +481,7 @@ public class KillAura extends Module {
             else {
                 KeyBinding.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), false);
                 if (blockingClient) {
-                    ReflectionUtils.setItemInUse(blockingClient = false);
+                    srb();
                     sendUnBlock = true;
                 }
             }
@@ -515,9 +512,7 @@ public class KillAura extends Module {
 
     private void setTarget(Entity entity) {
         if (entity == null || !(entity instanceof EntityLivingBase)) {
-            if (blockingClient) {
-                ReflectionUtils.setItemInUse(blockingClient = false);
-            }
+            srb();
             if (autoBlockOverride()) {
                 resetAutoblock(true);
             }
@@ -769,9 +764,6 @@ public class KillAura extends Module {
 
     private void handleBlocking(boolean blockState) {
         if (!Utils.holdingSword()) {
-            if (blockingClient) {
-                ReflectionUtils.setItemInUse(blockingClient = false);
-            }
             return;
         }
         /*if (this.blockingClient == blockState && autoBlockMode.getInput() != 3) {
@@ -782,7 +774,7 @@ public class KillAura extends Module {
                 resetAutoblock(true);
             }
         }
-        if (!t) {
+        if (!t || !hasAutoblocked) {
             return;
         }
         int keyCode = mc.gameSettings.keyBindUseItem.getKeyCode();
@@ -791,11 +783,11 @@ public class KillAura extends Module {
                 break;
             case 1: // vanilla
                 setKeyBindState(keyCode, blockState, false);
-                this.blockingClient = blockState;
+                blockingClient = blockState;
                 break;
             case 3: // blink
             case 4: // swap
-                ReflectionUtils.setItemInUse(this.blockingClient = blockState);
+                ReflectionUtils.setItemInUse(blockingClient = blockState);
                 break;
             case 2: // partial
                 if (!blockState) {
@@ -898,6 +890,12 @@ public class KillAura extends Module {
         rotated = false;
     }
 
+    private void srb() {
+        if (blockingClient) {
+            ReflectionUtils.setItemInUse(blockingClient = false);
+        }
+    }
+
     private boolean basicCondition() {
         if (!Utils.nullCheck()) {
             return false;
@@ -947,7 +945,6 @@ public class KillAura extends Module {
         mc.getNetHandler().addToSendQueue(new C08PacketPlayerBlockPlacement(mc.thePlayer.getHeldItem()));
         blockingServer = true;
     }
-
 
     private void setKeyBindState(int keycode, boolean state, boolean invokeTick) {
         KeyBinding.setKeyBindState(keycode, state);

@@ -116,7 +116,6 @@ public class ModuleUtils {
 
         if (e.getPacket() instanceof C07PacketPlayerDigging) {
             C07PacketPlayerDigging c07 = (C07PacketPlayerDigging) packet;
-            //Utils.print(String.valueOf(c07.getStatus()));
             if (Objects.equals(String.valueOf(c07.getStatus()), "START_DESTROY_BLOCK")) {
                 isBreaking = true;
             }
@@ -205,7 +204,7 @@ public class ModuleUtils {
                 if (Utils.getHorizontalSpeed() <= Velocity.minExtraSpeed.getInput()) {
                     added = Velocity.extraSpeedBoost.getInput() / 100;
                     if (Velocity.reverseDebug.isToggled()) {
-                        Utils.print("&7[&dR&7] Applied extra boost | Original speed: " + Utils.getHorizontalSpeed());
+                        Utils.modulePrint("&7[&dR&7] Applied extra boost | Original speed: " + Utils.getHorizontalSpeed());
                     }
                 }
                 double base = Utils.getHorizontalSpeed();
@@ -285,10 +284,8 @@ public class ModuleUtils {
             if (!hasSlowed) motionVal = motionVal - 0.15;
             if (mc.thePlayer.hurtTime == 0 && !setSlow && !mc.thePlayer.onGround) {
                 setSlow = hasSlowed = true;
-                //Utils.print("Slow " + motionVal);
             }
             didSlow = true;
-            //Utils.print(mc.thePlayer.ticksExisted + " : " + Utils.getHorizontalSpeed());
         }
         if (didSlow && mc.thePlayer.onGround) {
             canSlow = didSlow = false;
@@ -384,10 +381,6 @@ public class ModuleUtils {
     @SubscribeEvent
     public void onPreMotion(PreMotionEvent e) {
         int simpleY = (int) Math.round((e.posY % 1) * 10000);
-
-        /*if (ModuleManager.killAura.blockingClient || ModuleManager.noSlow.blockingClient || mc.gameSettings.keyBindUseItem.isKeyDown()) {
-            Utils.print("ka: " + ModuleManager.killAura.blockingClient + " | ns: " + ModuleManager.noSlow.blockingClient + " | use: " + mc.gameSettings.keyBindUseItem.isKeyDown());
-        }*/
 
         if (ModuleManager.scaffold.offsetDelay > 0) {
             --ModuleManager.scaffold.offsetDelay;
@@ -491,19 +484,19 @@ public class ModuleUtils {
         //online
         if (stripped.contains("You tipped ") && stripped.contains(" in") && stripped.contains("!") && CommandManager.status.start) {
             CommandManager.status.start = false;
-            Utils.print("§a " + CommandManager.status.ign + " is online");
+            Utils.modulePrint("§a " + CommandManager.status.ign + " is online");
             e.setCanceled(true);
         }
         if ((stripped.contains("You've already tipped someone in the past hour in") && stripped.contains("! Wait a bit and try again!") || stripped.contains("You've already tipped that person today in ")) && CommandManager.status.start) {
             CommandManager.status.start = false;
-            Utils.print("§a " + CommandManager.status.ign + " is online");
+            Utils.modulePrint("§a " + CommandManager.status.ign + " is online");
             //client.print(util.colorSymbol + "7^ if player recently left the server this may be innacurate (rate limited)");
             e.setCanceled(true);
         }
         //offline
         if (stripped.contains("That player is not online, try another user!") && CommandManager.status.start) {
             CommandManager.status.start = false;
-            Utils.print("§7 " + CommandManager.status.ign + " is offline");
+            Utils.modulePrint("§7 " + CommandManager.status.ign + " is offline");
             e.setCanceled(true);
         }
         //invalid name
@@ -511,14 +504,14 @@ public class ModuleUtils {
             CommandManager.status.cooldown = 0;
             CommandManager.status.start = false;
             CommandManager.status.currentMode = CommandManager.status.lastMode;
-            Utils.print("§7 " + CommandManager.status.ign + " doesn't exist");
+            Utils.modulePrint("§7 " + CommandManager.status.ign + " doesn't exist");
             e.setCanceled(true);
         }
         if (stripped.contains("That's not a valid username!") && CommandManager.status.start) {
             CommandManager.status.cooldown = 0;
             CommandManager.status.start = false;
             CommandManager.status.currentMode = CommandManager.status.lastMode;
-            Utils.print("§binvalid username");
+            Utils.modulePrint("§binvalid username");
             e.setCanceled(true);
         }
         //checking urself
@@ -526,7 +519,7 @@ public class ModuleUtils {
             CommandManager.status.cooldown = 0;
             CommandManager.status.start = false;
             CommandManager.status.currentMode = CommandManager.status.lastMode;
-            Utils.print("§a " + CommandManager.status.ign + " is online");
+            Utils.modulePrint("§a " + CommandManager.status.ign + " is online");
             e.setCanceled(true);
         }
     }

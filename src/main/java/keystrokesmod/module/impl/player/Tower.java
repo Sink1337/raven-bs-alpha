@@ -514,13 +514,16 @@ public class Tower extends Module {
         return canTower() && !Utils.keysDown() && verticalTower.getInput() > 0;
     }
 
+    private boolean disableJump;
+
     @SubscribeEvent
     public void onPostPlayerInput(PostPlayerInputEvent e) {
+        disableJump = false;
         if (!ModuleManager.scaffold.isEnabled) {
             return;
         }
         if (canTower() && Utils.keysDown() && towerMove.getInput() > 0) {
-            mc.thePlayer.movementInput.jump = false;
+            disableJump = true;
             if (!firstJump) {
                 if (!mc.thePlayer.onGround) {
                     if (!startedTowerInAir) {
@@ -535,9 +538,15 @@ public class Tower extends Module {
             }
         }
         if (canTower() && !Utils.keysDown() && verticalTower.getInput() > 0) {
-            mc.thePlayer.movementInput.jump = false;
+            disableJump = true;
         }
         if (delay) {
+            disableJump = true;
+        }
+        if (disableJump) {
+            if (disableWhileHurt.isToggled() && ModuleUtils.damage && !delay) {
+                return;
+            }
             mc.thePlayer.movementInput.jump = false;
         }
     }

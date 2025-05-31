@@ -199,7 +199,7 @@ public class LongJump extends Module {
         if (enabled) {
             if (!Utils.isMoving() && mode.getInput() == 0) notMoving = true;
             if (boostSetting.getInput() == 0 && verticalMotion.getInput() == 0) {
-                Utils.print("&cValues are set to 0!");
+                Utils.modulePrint("&cValues are set to 0!");
                 disabled();
                 return;
             }
@@ -233,7 +233,7 @@ public class LongJump extends Module {
         }
 
         if (fireballTime > 0 && (System.currentTimeMillis() - fireballTime) > FIREBALL_TIMEOUT) {
-            Utils.print("&cFireball timed out.");
+            Utils.modulePrint("&cFireball timed out.");
             disabled();
             return;
         }
@@ -241,10 +241,8 @@ public class LongJump extends Module {
             if (mode.getInput() == 0) {
                 modifyVertical(); // has to be onPreUpdate
             }
-            //Utils.print("Modifying vertical");
             if (allowStrafe.isToggled() && boostTicks < 32) {
                 Utils.setSpeed(Utils.getHorizontalSpeed(mc.thePlayer));
-                //Utils.print("Speed");
             }
         }
 
@@ -327,13 +325,9 @@ public class LongJump extends Module {
                     }
                 }
                 stopVelocity = true;
-                //Utils.print("Right click");
             }
         }
         if (boostTicks == 1) {
-            if (invertYaw.isToggled()) {
-                //client.setMotion(client.getMotion().x, client.getMotion().y + 0.035d, client.getMotion().z);
-            }
             modifyHorizontal();
             stopVelocity = false;
             if (!manual.isToggled() && !allowStrafe.isToggled() && mode.getInput() == 1) {
@@ -381,7 +375,6 @@ public class LongJump extends Module {
             S27PacketExplosion s27 = (S27PacketExplosion) packet;
             if (fireballTime == 0 || mc.thePlayer.getPosition().distanceSq(s27.getX(), s27.getY(), s27.getZ()) > MAX_EXPLOSION_DIST_SQ) {
                 e.setCanceled(true);
-                //Utils.print("0 fb time / out of dist");
             }
             if (!mc.thePlayer.onGround) {
                 disabled();
@@ -391,11 +384,8 @@ public class LongJump extends Module {
             fireballTime = 0;
             resetSlot();
             boostTicks = 0; // +1 on next pre update
-            //Utils.print("set start vals");
-
-            //client.print(client.getPlayer().getTicksExisted() + " s27 " + boostTicks + " " + client.getPlayer().getHurtTime() + " " + client.getPlayer().getSpeed());
         } else if (packet instanceof S08PacketPlayerPosLook) {
-            Utils.print("&cReceived setback, disabling.");
+            Utils.modulePrint("&cReceived setback, disabling.");
             disabled();
         }
 
@@ -439,10 +429,10 @@ public class LongJump extends Module {
         // only cancel bad packet right click on the tick we are sending it
         int fireballSlot = getFireballSlot();
         if (fireballSlot == -1) {
-            Utils.print("&cFireball not found.");
+            Utils.modulePrint("&cFireball not found.");
             disabled();
         } else if ((pre && Utils.distanceToGround(mc.thePlayer) > 3)/* || (!pre && !PacketUtil.canRightClickItem())*/) { //needs porting
-            Utils.print("&cCan't throw fireball right now.");
+            Utils.modulePrint("&cCan't throw fireball right now.");
             disabled();
             fireballSlot = -1;
         }
@@ -499,7 +489,7 @@ public class LongJump extends Module {
                         mc.thePlayer.motionY = ver - boostTicks * decay;
                     } else if (boostTicks >= (!notMoving ? 32/*horizontal motion ticks*/ : 33/*vertical motion ticks*/) + 3) {
                         mc.thePlayer.motionY = mc.thePlayer.motionY + 0.028;
-                        Utils.print("?");
+                        Utils.modulePrint("If you get this clip it & send in the raven bs v2 discord");
                     }
                 }
 

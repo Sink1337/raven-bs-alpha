@@ -78,7 +78,7 @@ public class NoFall extends Module {
     /*@SubscribeEvent
     public void onSoundEvent(SoundEvent.SoundSourceEvent e) {
         if (e.name.startsWith("game.player.hurt.fall")) {
-            Utils.print("Fall dmg sound");
+
 
         }
     }*/

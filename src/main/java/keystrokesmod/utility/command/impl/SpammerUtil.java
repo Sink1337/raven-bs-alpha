@@ -18,11 +18,7 @@ public class SpammerUtil extends Command {
 
             ModuleManager.spammer.message = spl[1];
 
-            if (args.length > 50) {
-                Utils.print("§cToo many args");
-                return;
-            }
-            Utils.print("§dSet spammer message as: " + ModuleManager.spammer.message);
+            Utils.modulePrint("§dSet spammer message as: " + ModuleManager.spammer.message);
         }
         else {
             syntaxError();

@@ -56,7 +56,6 @@ public class NoSlow extends Module {
     private static boolean fix;
     private boolean didC, md;
     private boolean jumped, setCancelled, setJump;
-    public boolean fn;
 
     public NoSlow() {
         super("NoSlow", category.movement, 0);
@@ -81,20 +80,16 @@ public class NoSlow extends Module {
     @Override
     public void onDisable() {
         resetFloat();
-        noSlowing = false;
         if (blockingClient) {
             ReflectionUtils.setItemInUse(blockingClient = false);
         }
         blink = wentOffGround = false;
-        fn = false;
         cantBlock = false;
-        setCancelled = false;
     }
 
     @SubscribeEvent
     public void onMouse(MouseEvent e) {
-
-        if (e.button == 1) {
+        if (e.button == 1 && e.buttonstate) {
             handleFloatSetup();
             if (setCancelled) {
                 setCancelled = false;
@@ -186,15 +181,14 @@ public class NoSlow extends Module {
 
     @SubscribeEvent
     public void onPreMotion(PreMotionEvent e) {
-        fn = false;
         EntityLivingBase g = Utils.raytrace(4);
         if (ModuleManager.killAura.blockingClient) {
             blockingClient = false;
         }
-        if (blockingClient && (!Mouse.isButtonDown(1) && !ModuleManager.killAura.blockingClient || !Utils.holdingSword())) {
+        if (blockingClient && (!Mouse.isButtonDown(1) || !Utils.holdingSword())) {
             ReflectionUtils.setItemInUse(blockingClient = false);
         }
-        if (sword.getInput() == 2 && !ModuleManager.killAura.blockingClient) {
+        if (sword.getInput() == 2) {
             if (blocking && (g == null && !BlockUtils.isInteractable(mc.objectMouseOver) || !Utils.holdingSword() && !Utils.keybinds.isMouseDown(1) || !Utils.tabbedIn())) {
                 KeyBinding.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), false);
                 blocking = false;
@@ -211,7 +205,7 @@ public class NoSlow extends Module {
                     cantBlock = false;
                 }
                 if (blockingClient) {
-                    ReflectionUtils.setItemInUse(true);
+                    ReflectionUtils.setItemInUse(blockingClient = true);
                     if (Mouse.isButtonDown(0)) {
                         mc.thePlayer.swingItem();
                     }
@@ -234,12 +228,10 @@ public class NoSlow extends Module {
             return;
         }
         boolean apply = getSlowed() != 0.2f;
-        if (!Mouse.isButtonDown(1) || !apply || fix || didC || !holdingUsable(mc.thePlayer.getHeldItem()) || !Utils.tabbedIn()) {
+        if (!Mouse.isButtonDown(1) || !holdingUsable() || !Utils.tabbedIn()) {
             resetFloat();
-            noSlowing = false;
-            if (!Mouse.isButtonDown(1)) {
-                fix = didC = requireJump = false;
-            }
+        }
+        if (!apply || fix || didC) {
             return;
         }
         if (!canFloat && jumped && ModuleUtils.inAirTicks > 1) {
@@ -248,7 +240,7 @@ public class NoSlow extends Module {
             setCancelled = false;
         }
         else if (canFloat && canFloat() && !requireJump) {
-            fn = md = true;
+            md = true;
             if (!mc.thePlayer.onGround) {
                 //-0.0784000015258789 ground value
                 //if (mc.thePlayer.motionY <= -0.1784000015258789) {
@@ -281,7 +273,7 @@ public class NoSlow extends Module {
         if (mode.getInput() != 4) {
             return;
         }
-        if (!apply || fix || didC || !holdingUsable(mc.thePlayer.getHeldItem()) || canFloat || jumped || BlockUtils.isInteractable(mc.objectMouseOver) || md) {
+        if (!apply || fix || didC || !holdingUsable() || canFloat || jumped || BlockUtils.isInteractable(mc.objectMouseOver) || md) {
             return;
         }
         if (mc.thePlayer.onGround) {
@@ -362,12 +354,19 @@ public class NoSlow extends Module {
     }
 
     private void resetFloat() {
-        jumped = false;
-        canFloat = false;
+        noSlowing = false;
+        fix = didC = requireJump = canFloat = jumped = md = setJump = setCancelled = false;
     }
 
-    private boolean holdingUsable(ItemStack itemStack) {
+    private boolean holdingUsable() {
+        ItemStack itemStack = mc.thePlayer.getHeldItem();
+        if (itemStack == null) {
+            return false;
+        }
         Item heldItem = itemStack.getItem();
+        if (heldItem == null) {
+            return false;
+        }
         if (heldItem instanceof ItemFood || heldItem instanceof ItemBucketMilk || (heldItem instanceof ItemBow && Utils.hasArrows(itemStack)) || (heldItem instanceof ItemPotion && !ItemPotion.isSplash(mc.thePlayer.getHeldItem().getItemDamage()))) {
             return true;
         }

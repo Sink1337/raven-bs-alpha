@@ -490,7 +490,6 @@ public class Scaffold extends Module {
         double dif = (lastMY - getMotionYaw());
         double v = 2.5;
         float offset = (yawWithOffset - yawBackwards2);
-        Utils.print(offset);
         if (offset > yawAngle || offset < -yawAngle) {
             lastYawS = getSmooth = smoothedYaw = yaw;
             return;
@@ -565,10 +564,8 @@ public class Scaffold extends Module {
             minOffset = 3;
             minPitch = sec;
         }
-        //String.valueOf(Utils.print("" + minOffset);
         //float offsetAmountD = ((((float) offsetAmount.getInput() / 10) - 10) * -2) - (((float) offsetAmount.getInput() / 10) - 10);
         //yawAngle += offsetAmountD;
-        //Utils.print("" + offsetAmountD);
 
         float offset = yawAngle;//(!Utils.scaffoldDiagonal(false)) ? 125.500F : 143.500F;
 
@@ -1001,7 +998,6 @@ public class Scaffold extends Module {
 
             if (dontDisable && ++disableTicks >= 2) {
                 isEnabled = false;
-                //Utils.print("Extra tick");
             }
             if (!dontDisable) {
                 isEnabled = false;
@@ -1379,31 +1375,6 @@ public class Scaffold extends Module {
         }
         return true;
     }
-
-    /*private boolean allowedFaces(EnumFacing enumFacing) {
-        if (yaw >= 0 && yaw < 90) {
-            //Utils.print("1");
-            //west south
-            return enumFacing == EnumFacing.DOWN || enumFacing == EnumFacing.WEST || enumFacing == EnumFacing.SOUTH;
-        }
-        else if (yaw >= 90 && yaw < 180) {
-            //Utils.print("2");
-            //north west
-            return enumFacing == EnumFacing.DOWN || enumFacing == EnumFacing.NORTH || enumFacing == EnumFacing.WEST;
-        }
-        else if (yaw == 180 || yaw >= -180 && yaw < -90) {
-            //Utils.print("3");
-            //north east
-            return enumFacing == EnumFacing.DOWN || enumFacing == EnumFacing.NORTH || enumFacing == EnumFacing.EAST;
-        }
-        else if (yaw >= -90 && yaw <= 0) {
-            //Utils.print("4");
-            //east south
-            return enumFacing == EnumFacing.DOWN || enumFacing == EnumFacing.EAST || enumFacing == EnumFacing.SOUTH;
-        }
-
-        return false;
-    }*/
 
     float applyGcd(float value) {
         float gcd = 0.2F * 0.2F * 0.2F * 8.0F;
