@@ -35,7 +35,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class NoSlow extends Module {
     public static SliderSetting sword, mode, blinkMode, vanillaMode;
     public static SliderSetting slowed;
-    public static ButtonSetting disableBow;
+    public static ButtonSetting disableBow, disableSword;
     public static ButtonSetting disablePotions;
     public static ButtonSetting swordOnly;
     public ButtonSetting renderTimer;
@@ -66,6 +66,7 @@ public class NoSlow extends Module {
         this.registerSetting(blinkMode = new SliderSetting("Blink Mode", 0, blinkModes));
         this.registerSetting(renderTimer = new ButtonSetting("Render timer", false));
         this.registerSetting(slowed = new SliderSetting("Slow %", 80.0D, 0.0D, 80.0D, 1.0D));
+        this.registerSetting(disableSword = new ButtonSetting("Disable sword", false));
         this.registerSetting(disableBow = new ButtonSetting("Disable bow", false));
         this.registerSetting(disablePotions = new ButtonSetting("Disable potions", false));
         this.registerSetting(swordOnly = new ButtonSetting("Sword only", false));
@@ -255,19 +256,6 @@ public class NoSlow extends Module {
         }
     }
 
-    @SubscribeEvent(priority = EventPriority.HIGH)
-    public void onSendPacket(SendPacketEvent e) {
-        if (!Utils.nullCheck()) {
-            return;
-        }
-        Packet packet = e.getPacket();
-        if (packet instanceof C08PacketPlayerBlockPlacement) {
-            if (cantBlock && !ModuleManager.killAura.targeting) {
-                e.setCanceled(true);
-            }
-        }
-    }
-
     private void handleFloatSetup() {
         boolean apply = getSlowed() != 0.2f;
         if (mode.getInput() != 4) {
@@ -332,6 +320,9 @@ public class NoSlow extends Module {
                 return 0.2f;
             }
             if (mc.thePlayer.getHeldItem().getItem() instanceof ItemBow && disableBow.isToggled()) {
+                return 0.2f;
+            }
+            if (mc.thePlayer.getHeldItem().getItem() instanceof ItemSword && disableSword.isToggled()) {
                 return 0.2f;
             }
             else if (mc.thePlayer.getHeldItem().getItem() instanceof ItemPotion && !ItemPotion.isSplash(mc.thePlayer.getHeldItem().getItemDamage()) && disablePotions.isToggled()) {

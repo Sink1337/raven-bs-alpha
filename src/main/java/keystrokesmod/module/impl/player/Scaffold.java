@@ -550,12 +550,12 @@ public class Scaffold extends Module {
             minPitch = sec;
         }
         if (quad > 32 && quad <= 38 || quad >= 52 && quad < 58) {
-            yawAngle = 132.825F;
+            yawAngle = 133.485F;
             minOffset = 6;
             minPitch = sec;
         }
         if (quad > 38 && quad <= 42 || quad >= 48 && quad < 52) {
-            yawAngle = 135.485F;
+            yawAngle = 136.485F;
             minOffset = 4;
             minPitch = sec;
         }

@@ -5,6 +5,7 @@ import keystrokesmod.event.*;
 import keystrokesmod.module.Module;
 import keystrokesmod.module.ModuleManager;
 import keystrokesmod.module.impl.minigames.BedWars;
+import keystrokesmod.module.impl.movement.LongJump;
 import keystrokesmod.module.setting.impl.ButtonSetting;
 import keystrokesmod.module.setting.impl.SliderSetting;
 import keystrokesmod.utility.*;
@@ -14,6 +15,7 @@ import net.minecraft.block.properties.IProperty;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemStack;
+import net.minecraft.network.Packet;
 import net.minecraft.network.play.client.C07PacketPlayerDigging;
 import net.minecraft.network.play.client.C08PacketPlayerBlockPlacement;
 import net.minecraft.network.play.client.C0APacketAnimation;
@@ -126,7 +128,7 @@ public class BedAura extends Module {
             return;
         }
         if (ra) {
-            setRots(e);
+            //setRots(e);
             ra = false;
         }
         if (delayStop) {
@@ -178,7 +180,7 @@ public class BedAura extends Module {
         }
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onPreMotion(PreMotionEvent e) {
 
         if (stopAutoblock) {
@@ -187,7 +189,7 @@ public class BedAura extends Module {
             }
         }
 
-        if (groundSpoof.isToggled() && !mc.thePlayer.isInWater() && spoofGround) {
+        if (!mc.thePlayer.isInWater() && spoofGround) {
             e.setOnGround(true);
             if (Raven.debug) {
                 Utils.sendModuleMessage(this, "&7ground spoof (&3" + mc.thePlayer.ticksExisted + "&7).");
@@ -197,7 +199,7 @@ public class BedAura extends Module {
         spoofGround = false;
     }
 
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    @SubscribeEvent(priority = EventPriority.HIGH)
     public void onPreUpdate(PreUpdateEvent e) {
         if (startPacket) {
             mc.thePlayer.sendQueue.addToSendQueue(new C07PacketPlayerDigging(C07PacketPlayerDigging.Action.START_DESTROY_BLOCK, packetPos, EnumFacing.UP));
@@ -248,6 +250,18 @@ public class BedAura extends Module {
 
     public boolean cancelKnockback() {
         return cancelKnockback.isToggled() && currentBlock != null && RotationUtils.inRange(currentBlock, range.getInput());
+    }
+
+    @SubscribeEvent
+    public void onReceivePacketAll(ReceiveAllPacketsEvent e) {
+        if (!cancelKnockback() || e.isCanceled()) {
+            return;
+        }
+        if (e.getPacket() instanceof S12PacketEntityVelocity) {
+            if (((S12PacketEntityVelocity) e.getPacket()).getEntityID() == mc.thePlayer.getEntityId()) {
+                e.setCanceled(true);
+            }
+        }
     }
 
     private BlockPos[] getBedPos() {
@@ -399,10 +413,10 @@ public class BedAura extends Module {
         isBreaking = true;
         breakTick = true;
 
-        //if (Utils.distanceToGround() < 3) {
+        if (mc.thePlayer.motionY >= -0.4D && groundSpoof.isToggled()) {
             ignoreSlow = true;
-            //spoofGround = true;
-        //}
+            spoofGround = true;
+        }
         ra = true;
     }
 
@@ -450,6 +464,7 @@ public class BedAura extends Module {
         if ((breakProgress <= 0 || breakProgress >= 1) && mode.getInput() == 2 && !firstStop) {
             firstStop = true;
             stopAutoblock = delayStop = true;
+            setRots(e);
             return;
         }
         if (mode.getInput() == 2 || mode.getInput() == 0) {

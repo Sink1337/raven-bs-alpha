@@ -610,9 +610,6 @@ public class Tower extends Module {
         if (!Utils.nullCheck() || !Utils.jumpDown() || !Utils.tabbedIn()) {
             return false;
         }
-        else if (towerMove.getInput() == 0 && verticalTower.getInput() == 0) {
-            return false;
-        }
         else if (mc.thePlayer.isCollidedHorizontally) {
             return false;
         }

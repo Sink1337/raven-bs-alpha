@@ -40,6 +40,7 @@ public class NoFall extends Module {
     private ButtonSetting ignoreVoid, voidC;
     private ButtonSetting hideSound;
     public ButtonSetting renderTimer;
+    private ButtonSetting disableTp;
     private String[] modes = new String[]{"Spoof", "NoGround", "Packet A", "Packet B", "CTW Packet", "Prediction", "Blink"};
 
     private int color = new Color(0, 187, 255, 255).getRGB();
@@ -55,6 +56,9 @@ public class NoFall extends Module {
 
     private int y;
 
+    private boolean tp;
+    private double lastX, lastY, lastZ;
+
     public NoFall() {
         super("NoFall", category.player);
         this.registerSetting(mode = new SliderSetting("Mode", 2, modes));
@@ -63,6 +67,7 @@ public class NoFall extends Module {
         this.registerSetting(ignoreVoid = new ButtonSetting("Ignore void", false));
         this.registerSetting(voidC = new ButtonSetting("Experimental void check", true));
         this.registerSetting(renderTimer = new ButtonSetting("Render Blink Timer", true));
+        this.registerSetting(disableTp = new ButtonSetting("Disable on teleport", true));
         //this.registerSetting(hideSound = new ButtonSetting("Hide fall damage sound", false));
     }
 
@@ -73,6 +78,7 @@ public class NoFall extends Module {
     public void onDisable() {
         Utils.resetTimer();
         blink = false;
+        tp = false;
     }
 
     /*@SubscribeEvent
@@ -85,8 +91,8 @@ public class NoFall extends Module {
 
     @SubscribeEvent
     public void onReceivePacket(ReceivePacketEvent e) {
-        if (e.getPacket() instanceof S08PacketPlayerPosLook && n > 0) {
-            n = 34;
+        if (e.getPacket() instanceof S08PacketPlayerPosLook) {
+            if (n > 0) n = 34;
         }
     }
 
@@ -113,10 +119,21 @@ public class NoFall extends Module {
         }
 
 
+        if (mc.thePlayer.posY >= lastY + 3.5D && !(mc.thePlayer.posY >= lastY + 10.0D) && ModuleUtils.hasTeleported && !ModuleUtils.worldChange) {
+            if (disableTp.isToggled()) {
+                Utils.modulePrint("§cMost likely staff checked, disabling NoFall until on ground");
+                tp = true;
+                Utils.ping();
+            }
+        }
+        else if (mc.thePlayer.onGround && tp) {
+            tp = false;
+            Utils.modulePrint("§aNoFall re-enabled");
+        }
 
-
-
-
+        lastX = mc.thePlayer.posX;
+        lastY = mc.thePlayer.posY;
+        lastZ = mc.thePlayer.posZ;
 
         if (reset()) {
             Utils.resetTimer();
@@ -260,6 +277,9 @@ public class NoFall extends Module {
         if (voidC.isToggled() && Utils.overVoid() && !dist()) {
             return true;
         }
+        if (tp) {
+            return true;
+        }
         return false;
     }
 
@@ -268,7 +288,7 @@ public class NoFall extends Module {
 
 
     public boolean dist() {
-        double minMotion = 0.1;
+        double minMotion = 0.12;
         int dist1 = 4;
         int dist2 = 6;
         int dist3 = 7;

@@ -17,6 +17,7 @@ import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.Packet;
 import net.minecraft.network.play.client.*;
+import net.minecraft.network.play.server.S08PacketPlayerPosLook;
 import net.minecraft.network.play.server.S12PacketEntityVelocity;
 import net.minecraft.network.play.server.S27PacketExplosion;
 import net.minecraft.util.BlockPos;
@@ -74,6 +75,8 @@ public class ModuleUtils {
 
     private int placeFrequency, removeFrequency, heldDelay, rcDelay;
 
+    public static boolean worldChange;
+
 
     //-0.0784000015258789 = ground value
 
@@ -87,11 +90,12 @@ public class ModuleUtils {
         if (e.entity == mc.thePlayer) {
             ModuleManager.disabler.disablerLoaded = false;
             inAirTicks = 0;
+            worldChange = true;
         }
     }
 
     @SubscribeEvent(priority = EventPriority.HIGH)
-    public void onSendPacketAll(SendAllPacketsEvent e) {
+    public void onSendPacketsAll(SendAllPacketsEvent e) {
         if (!Utils.nullCheck()) {
             return;
         }
@@ -151,8 +155,11 @@ public class ModuleUtils {
 
     }
 
+    public static boolean hasTeleported;
+    private int htpt;
+
     @SubscribeEvent
-    public void onReceivePacketAll(ReceiveAllPacketsEvent e) {
+    public void onReceivePacketsAll(ReceiveAllPacketsEvent e) {
         if (!Utils.nullCheck()) {
             return;
         }
@@ -179,6 +186,10 @@ public class ModuleUtils {
 
             }
         }
+        if (e.getPacket() instanceof S08PacketPlayerPosLook) {
+            hasTeleported = true;
+            htpt = 2;
+        }
     }
 
     private int ft = 0;
@@ -189,7 +200,7 @@ public class ModuleUtils {
             ft = 0;
         }
         if (bhopBoostConditions()) {
-            if (mc.thePlayer.hurtTime > 0 && ft == 0) {
+            if (mc.thePlayer.hurtTime > 0 && ft == 0 && firstDamage) {
                 double base = Utils.getHorizontalSpeed();
                 if (base <= 0) {
                     base = 0.01;
@@ -199,7 +210,7 @@ public class ModuleUtils {
             }
         }
         if (veloBoostConditions()) {
-            if (mc.thePlayer.hurtTime > 0 && ft == 0) {
+            if (mc.thePlayer.hurtTime > 0 && ft == 0 && firstDamage) {
                 double added = 0;
                 if (Utils.getHorizontalSpeed() <= Velocity.minExtraSpeed.getInput()) {
                     added = Velocity.extraSpeedBoost.getInput() / 100;
@@ -215,6 +226,8 @@ public class ModuleUtils {
                 ft = -1;
             }
         }
+        firstDamage = false;
+        worldChange = false;
     }
 
     private boolean bhopBoostConditions() {
@@ -233,6 +246,14 @@ public class ModuleUtils {
 
     @SubscribeEvent
     public void onPreUpdate(PreUpdateEvent e) {
+
+        if (hasTeleported && htpt > 0) {
+            htpt--;
+        }
+        else {
+            htpt = 0;
+            hasTeleported = false;
+        }
 
         rcTick = Utils.keybinds.isMouseDown(1) ? ++rcTick : 0;
 
