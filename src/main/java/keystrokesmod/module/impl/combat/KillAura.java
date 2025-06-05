@@ -93,6 +93,7 @@ public class KillAura extends Module {
     private int partialTicks;
     private boolean wasUsing;
     private boolean hasAutoblocked;
+    private boolean hasBlocked;
 
     // blink related
     private boolean swapped;
@@ -116,6 +117,7 @@ public class KillAura extends Module {
     private int lastSet;
     private boolean hasTargeted;
     public boolean t;
+    private int getTicks;
 
     public KillAura() {
         super("KillAura", category.combat);
@@ -162,7 +164,6 @@ public class KillAura extends Module {
 
     @Override
     public void onDisable() {
-        handleBlocking(false);
         hitMap.clear();
         lastSet = 0;
         if (autoBlockOverride()) { // interact autoblock
@@ -199,10 +200,11 @@ public class KillAura extends Module {
         }
         hasTargeted = false;
 
-        if (autoBlockMode.getInput() != 4) {
+        if (autoBlockMode.getInput() == 3) {
             if (target == null || !manualBlock() && manualBlock.isToggled()) {
                 if (ModuleUtils.swapTick == 0 && !ModuleUtils.isBlocked) {
                     interactTicks = 1;
+                    getTicks = getAPSToTicks(10);
                 } else {
                     interactTicks = 0;
                 }
@@ -248,7 +250,6 @@ public class KillAura extends Module {
         }
         if (target == null) {
             resetAutoblock(true);
-            handleBlocking(false);
             return;
         }
         if (ModuleManager.bedAura.stopAutoblock) {
@@ -270,12 +271,7 @@ public class KillAura extends Module {
             interactTicks = 0;
         }
         if (inBlockRange) {
-            if (manualBlock()) {
-                handleBlocking(true);
-            }
-            if (manualBlock.isToggled()) {
-                handleBlocking(manualBlock());
-            }
+            handleBlocking();
         }
         if (mc.currentScreen == null || mc.currentScreen.allowUserInput) {
             boolean pressedRight = Mouse.isButtonDown(1);
@@ -454,7 +450,7 @@ public class KillAura extends Module {
     }
 
     public void onCustomMouse(int button, boolean state) {
-        if (autoBlockOverride() || target == null) {
+        if (autoBlockOverride()) {
             return;
         }
         if (button == 1) {
@@ -518,7 +514,6 @@ public class KillAura extends Module {
             swapped = false;
             partialTicks = 0;
             interactTicks = 0;
-            handleBlocking(false);
             if (target != null) {
                 stoppedTargeting = true;
                 ModuleUtils.unTargetTicks = 0;
@@ -761,7 +756,54 @@ public class KillAura extends Module {
         return hostileMobs.contains(entityCreature);
     }
 
-    private void handleBlocking(boolean blockState) {
+    private int getAPSToTicks(double cap) {
+        double apsv = aps.getInput();
+        if (apsv > cap) {
+            apsv = cap;
+        }
+        if (apsv >= 20) {
+            return 0;
+        }
+        if (apsv >= 16) {
+            return (int) Utils.randomizeDouble(0.0D, 1.0D);
+        }
+        if (apsv >= 15) {
+            return 1;
+        }
+        if (apsv >= 11) {
+            return (int) Utils.randomizeDouble(1.0D, 2.0D);
+        }
+        if (apsv >= 10) {
+            return 2;
+        }
+        if (apsv >= 7) {
+            return (int) Utils.randomizeDouble(2.0D, 3.0D);
+        }
+        if (apsv >= 6) {
+            return (int) Utils.randomizeDouble(3.0D, 4.0D);
+        }
+        if (apsv >= 5) {
+            return 4;
+        }
+        if (apsv >= 4) {
+            return 5;
+        }
+        if (apsv >= 3) {
+            return (int) Utils.randomizeDouble(6.0D, 7.0D);
+        }
+        if (apsv >= 2) {
+            return 10;
+        }
+        if (apsv >= 1) {
+            return 20;
+        }
+        if (apsv >= 0) {
+            return -1;
+        }
+        return -1;
+    }
+
+    private void handleBlocking() {
         if (!Utils.holdingSword()) {
             return;
         }
@@ -769,7 +811,7 @@ public class KillAura extends Module {
             return;
         }*/
         if (autoBlockMode.getInput() != previousAutoBlockMode) {
-            if (previousAutoBlockMode >= 3) { // if == interact
+            if (previousAutoBlockMode > 0) {
                 resetAutoblock(true);
             }
         }
@@ -777,42 +819,7 @@ public class KillAura extends Module {
         if (!t || !hasAutoblocked) {
             return;
         }
-        int keyCode = mc.gameSettings.keyBindUseItem.getKeyCode();
-        switch ((int) autoBlockMode.getInput()) {
-            case 0: // manual, do nothing
-                break;
-            case 1: // vanilla
-                setKeyBindState(keyCode, blockState, false);
-                blockingClient = blockState;
-                break;
-            case 2: // partial
-                if (!blockState) {
-                    rightClick(partialDown = false);
-                    break;
-                }
-                partialTicks++;
-                if (partialDown) {
-                    rightClick(partialDown = false);
-                    partialTicks = 0;
-                    break;
-                }
-                else if (partialTicks == 2) {
-                    rightClick(partialDown = true);
-                }
-                break;
-        }
-        if (autoBlockMode.getInput() >= 3) { // full abs
-            ReflectionUtils.setItemInUse(blockingClient = blockState);
-        }
-    }
-
-    private void rightClick(boolean state) {
-        int keyCode = mc.gameSettings.keyBindUseItem.getKeyCode();
-        KeyBinding.setKeyBindState(keyCode, state);
-        if (state) {
-            KeyBinding.onTick(keyCode);
-        }
-        ReflectionUtils.setButton(1, state);
+        ReflectionUtils.setItemInUse(blockingClient);
     }
 
     private double getMaxRange() {
@@ -842,27 +849,67 @@ public class KillAura extends Module {
         boolean swung = false;
         hasAutoblocked = true;
         switch ((int) autoBlockMode.getInput()) {
-            case 3: // blink
+            case 1:
+                blockingClient = true;
                 interactTicks++;
-                switch (interactTicks) {
-                    case 1:
-                        if (ModuleUtils.isBlocked) {
-                            blink = true;
-                            setSwapSlot();
-                        }
-                        break;
-                    case 2:
-                        setCurrentSlot();
+                if (!hasBlocked) {
+                    handleInteractAndAttack(distance, true, true, swung);
+                    sendBlockPacket();
+                    interactTicks = 0;
+                }
+                else {
+                    if (interactTicks >= getAPSToTicks(20)) {
                         handleInteractAndAttack(distance, true, true, swung);
-                        sendBlockPacket();
                         interactTicks = 0;
-                        blink = false;
-                        break;
+                    }
+                }
+                break;
+            case 2: // partial
+                if (interactTicks == 0) {
+                    getTicks = getAPSToTicks(10);
+                }
+                interactTicks++;
+                if (interactTicks == 1) {
+                    if (ModuleUtils.isBlocked) {
+                        sendDigPacket();
+                        blockingClient = false;
+                    }
+                }
+                if (interactTicks == 2) {
+                    handleInteractAndAttack(distance, true, true, swung);
+                    sendBlockPacket();
+                    blockingClient = true;
+                }
+                if (interactTicks >= getTicks) {
+                    interactTicks = 0;
+                }
+                break;
+            case 3: // blink
+                blockingClient = true;
+                if (interactTicks == 0) {
+                    getTicks = getAPSToTicks(10);
+                }
+                interactTicks++;
+                if (interactTicks == 1) {
+                    if (ModuleUtils.isBlocked) {
+                        blink = true;
+                        setSwapSlot();
+                    }
+                }
+                if (interactTicks == 2) {
+                    setCurrentSlot();
+                    handleInteractAndAttack(distance, true, true, swung);
+                    sendBlockPacket();
+                    blink = false;
+                }
+                if (interactTicks >= getTicks) {
+                    interactTicks = 0;
                 }
                 break;
             case 4: // swap
+                blockingClient = true;
                 interactTicks++;
-                if (interactTicks <= 2 && cycle == 0 || interactTicks <= 1 && cycle == 1) {
+                if (interactTicks == 1) {
                     if (ModuleUtils.isBlocked) {
                         setSwapSlot();
                         setCurrentSlot();
@@ -870,12 +917,8 @@ public class KillAura extends Module {
                     handleInteractAndAttack(distance, true, true, swung);
                     sendBlockPacket();
                 }
-                else {
+                if (interactTicks >= getAPSToTicks(20)) {
                     interactTicks = 0;
-                    ++cycle;
-                    if (cycle > 1) {
-                        cycle = 0;
-                    }
                 }
                 break;
         }
@@ -919,6 +962,7 @@ public class KillAura extends Module {
         Raven.packetsHandler.playerSlot.set(bestSwapSlot);
         swapped = true;
         blockingServer = false;
+        hasBlocked = false;
     }
 
     private void sendDigPacket() {
@@ -927,11 +971,13 @@ public class KillAura extends Module {
         }
         mc.thePlayer.sendQueue.addToSendQueue(new C07PacketPlayerDigging(C07PacketPlayerDigging.Action.RELEASE_USE_ITEM, BlockPos.ORIGIN, DOWN));
         blockingServer = false;
+        hasBlocked = false;
     }
 
     private void sendBlockPacket() {
         mc.getNetHandler().addToSendQueue(new C08PacketPlayerBlockPlacement(mc.thePlayer.getHeldItem()));
         blockingServer = true;
+        hasBlocked = true;
     }
 
     private boolean settingCondition() {
@@ -1143,6 +1189,7 @@ public class KillAura extends Module {
         swapped = false;
         interactTicks = 0;
         hasAutoblocked = false;
+        hasBlocked = false;
     }
 
     private boolean inRange(final Entity target, final double distance) {

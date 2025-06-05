@@ -527,7 +527,7 @@ public class Scaffold extends Module {
         long strokeDelay = 250;
 
         float first = 76F;
-        float sec = 76F;
+        float sec = 78F;
 
         if (quad <= 5 || quad >= 85) {
             yawAngle = 126.425F;
@@ -555,12 +555,12 @@ public class Scaffold extends Module {
             minPitch = sec;
         }
         if (quad > 38 && quad <= 42 || quad >= 48 && quad < 52) {
-            yawAngle = 136.485F;
+            yawAngle = 135.625F;
             minOffset = 4;
             minPitch = sec;
         }
         if (quad > 42 && quad <= 45 || quad >= 45 && quad < 48) {
-            yawAngle = 138.125F;
+            yawAngle = 137.625F;
             minOffset = 3;
             minPitch = sec;
         }
